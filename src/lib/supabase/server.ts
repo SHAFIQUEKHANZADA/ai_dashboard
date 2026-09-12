@@ -1,5 +1,8 @@
 import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+
+type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 // Request-scoped Supabase client that respects the signed-in user + RLS.
 // Use in server components, route handlers, and server actions.
@@ -13,9 +16,9 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            cookiesToSet.forEach(({ name, value, options }: CookieToSet) =>
               cookieStore.set(name, value, options),
             );
           } catch {
@@ -30,8 +33,7 @@ export async function createClient() {
 // Service-role client for ingestion ONLY (bypasses RLS). Never import into code
 // that runs in the browser or renders user-facing pages.
 export function createServiceClient() {
-  const { createClient: createRaw } = require("@supabase/supabase-js");
-  return createRaw(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
