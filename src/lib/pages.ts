@@ -1,15 +1,21 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getStores } from "@/lib/data";
+import { getSessionUser, getAccessibleStores } from "@/lib/auth";
 import { humanizeIntent } from "@/lib/format";
 import type { Store } from "@/lib/types";
 
-// Shared scope resolution for the secondary pages.
+// Shared scope resolution for the secondary pages — respects the signed-in user's
+// role and store grants (a 'store' member can never widen scope past their stores).
 export async function resolveScope(storeParam?: string) {
-  const stores = await getStores();
+  const user = await getSessionUser();
+  const stores = user ? await getAccessibleStores(user) : await getStores();
   const ids = stores.map((s) => s.id);
-  const storeId = storeParam && ids.includes(storeParam) ? storeParam : null;
+  const canSeeGroup = user ? user.canSeeGroup : true;
+  const storeId = storeParam && ids.includes(storeParam)
+    ? storeParam
+    : canSeeGroup ? null : (ids[0] ?? null); // store users default to their first store
   const scopeIds = storeId ? [storeId] : ids;
-  return { stores, storeId, scopeIds, names: new Map(stores.map((s) => [s.id, s.name])) };
+  return { stores, storeId, scopeIds, canSeeGroup, user, names: new Map(stores.map((s) => [s.id, s.name])) };
 }
 
 export function defaultRange(days = 14) {
@@ -69,6 +75,73 @@ export async function getCalls(scopeIds: string[], names: Map<string, string>, f
     transferred: rows.filter((r) => r.transferred).length,
     callbacks: rows.filter((r) => r.callback_needed).length,
   };
+}
+
+// ── Metric drill-down: the actual calls behind a number, linkable into GHL ──
+export const DRILLABLE = ["transfers", "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count"] as const;
+export type DrillMetric = (typeof DRILLABLE)[number];
+
+export const METRIC_LABEL: Record<DrillMetric, string> = {
+  transfers: "Transfers",
+  failed_transfers: "Failed Transfers",
+  dropped_calls: "Dropped Calls",
+  callbacks_needed: "Callbacks Needed",
+  recovered_count: "Recovered Opportunities",
+};
+
+const RECOVERED_TAGS = ["dropped", "callback-needed", "needs-attention"];
+
+export function isDrillMetric(x: string | undefined): x is DrillMetric {
+  return !!x && (DRILLABLE as readonly string[]).includes(x);
+}
+
+// GHL/Zenvyk deep link to the contact, so any number is verifiable at the source.
+export function ghlContactUrl(locationId: string | null, contactId: string | null): string | null {
+  if (!locationId || !contactId) return null;
+  return `https://app.zenvyk.com/v2/location/${locationId}/contacts/detail/${contactId}`;
+}
+
+export interface DrillRow {
+  id: string;
+  started_at: string;
+  store: string;
+  intent: string | null;
+  outcome: string | null;
+  tags: string[];
+  ghl_url: string | null;
+}
+
+export async function getMetricCalls(metric: DrillMetric, scopeIds: string[], date: string) {
+  const sb = createServiceClient();
+  const stores = await getStores();
+  const names = new Map(stores.map((s) => [s.id, s.name]));
+  const locs = new Map(stores.map((s) => [s.id, s.ghl_location_id]));
+
+  let q = sb
+    .from("esther_calls")
+    .select("id,started_at,store_id,intent,outcome,tags,transfer_succeeded,ghl_contact_id")
+    .in("store_id", scopeIds)
+    .eq("local_date", date)
+    .order("started_at", { ascending: false })
+    .limit(500);
+
+  if (metric === "transfers") q = q.eq("transferred", true);
+  else if (metric === "failed_transfers") q = q.eq("transferred", true).eq("transfer_succeeded", false);
+  else if (metric === "dropped_calls") q = q.eq("outcome", "dropped");
+  else if (metric === "callbacks_needed") q = q.eq("callback_needed", true);
+  else if (metric === "recovered_count") q = q.eq("outcome", "booked").overlaps("tags", RECOVERED_TAGS);
+
+  const { data } = await q;
+  const rows: DrillRow[] = (data ?? []).map((r) => ({
+    id: r.id,
+    started_at: r.started_at,
+    store: names.get(r.store_id) ?? "—",
+    intent: r.intent ? humanizeIntent(r.intent) : null,
+    outcome: r.outcome,
+    tags: r.tags ?? [],
+    ghl_url: ghlContactUrl(locs.get(r.store_id) ?? null, r.ghl_contact_id),
+  }));
+  return { rows, label: METRIC_LABEL[metric] };
 }
 
 export interface ApptRow {

@@ -27,3 +27,6 @@ export const NAV: NavItem[] = [
   { label: "Dealerships", href: "/dealerships", icon: Building2 },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
+
+// Tabs an admin can grant/revoke per member (Dashboard is always available).
+export const RESTRICTABLE_TABS = NAV.filter((n) => n.href !== "/").map((n) => ({ href: n.href, label: n.label }));

@@ -18,7 +18,7 @@ import type {
 // Metrics with no live feed yet — always render "Awaiting data", never a fake 0.
 // ai_spend + cost_per_booking now flow from the GHL billing import; they fall back
 // to "Awaiting data" on their own whenever a day has no imported spend (value null).
-const AWAITING = new Set(["recovered_count", "secret_shopper_score"]);
+const AWAITING = new Set(["secret_shopper_score"]);
 const SUM_KEYS = new Set([
   "total_calls", "appointments_booked", "eligible_calls", "transfers",
   "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count", "ai_spend",

@@ -2,11 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AudioLines } from "lucide-react";
+import { AudioLines, Users } from "lucide-react";
 import { NAV } from "@/lib/nav";
 
-export function Sidebar() {
+export interface SidebarUser {
+  name: string;
+  role: string;
+  isAdmin: boolean;
+  hiddenTabs: string[];
+}
+
+export function Sidebar({ user }: { user?: SidebarUser | null }) {
   const pathname = usePathname();
+  const hidden = new Set(user?.isAdmin ? [] : user?.hiddenTabs ?? []);
+  const nav = NAV.filter((item) => item.href === "/" || !hidden.has(item.href));
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[220px] flex-col bg-navy text-slate-300 lg:flex">
       {/* Brand */}
@@ -24,7 +33,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
@@ -43,6 +52,21 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {user?.isAdmin && (
+          <Link
+            href="/team"
+            className={[
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-colors",
+              pathname.startsWith("/team")
+                ? "bg-brand text-white shadow-sm"
+                : "text-slate-300 hover:bg-white/5 hover:text-white",
+            ].join(" ")}
+          >
+            <Users className="h-[18px] w-[18px]" strokeWidth={2} />
+            Team &amp; Access
+          </Link>
+        )}
       </nav>
 
       {/* Promo card */}

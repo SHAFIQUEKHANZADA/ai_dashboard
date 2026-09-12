@@ -1,3 +1,4 @@
+import { requireTab } from "@/lib/auth";
 import { PageTop, Tile } from "@/components/page-top";
 import { StoreFilter } from "@/components/store-filter";
 import { Panel } from "@/components/panel";
@@ -14,6 +15,7 @@ function shortName(name: string) {
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ store?: string; days?: string }> }) {
+  await requireTab("/reports");
   const sp = await searchParams;
   const days = Number(sp.days) === 7 || Number(sp.days) === 30 ? Number(sp.days) : 14;
   const { stores, storeId, scopeIds } = await resolveScope(sp.store);

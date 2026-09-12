@@ -1,3 +1,4 @@
+import { requireTab } from "@/lib/auth";
 import { PageTop, Tile } from "@/components/page-top";
 import { StoreFilter } from "@/components/store-filter";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -15,6 +16,7 @@ const SOURCE: Record<string, { label: string; cls: string }> = {
 };
 
 export default async function AppointmentsPage({ searchParams }: { searchParams: Promise<{ store?: string; source?: string }> }) {
+  await requireTab("/appointments");
   const sp = await searchParams;
   const { stores, storeId, scopeIds, names } = await resolveScope(sp.store);
   const { from, to } = defaultRange(14);

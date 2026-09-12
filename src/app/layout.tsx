@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/sidebar";
+import { AppShell } from "@/components/app-shell";
+import { getSessionUser } from "@/lib/auth";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
@@ -10,14 +11,15 @@ export const metadata: Metadata = {
   description: "Daily performance overview — People + AI + More Sales Tomorrow.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getSessionUser();
+  const shellUser = user
+    ? { name: user.name, email: user.email, role: user.role, isAdmin: user.isAdmin, hiddenTabs: user.hiddenTabs }
+    : null;
   return (
     <html lang="en" data-theme="light" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <Sidebar />
-        <div className="lg:pl-[220px]">
-          <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">{children}</main>
-        </div>
+        <AppShell user={shellUser}>{children}</AppShell>
       </body>
     </html>
   );

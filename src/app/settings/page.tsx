@@ -1,3 +1,4 @@
+import { requireTab } from "@/lib/auth";
 import { PageTop } from "@/components/page-top";
 import { Panel } from "@/components/panel";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -6,6 +7,7 @@ import type { MetricDefinition, Store } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
+  await requireTab("/settings");
   const sb = createServiceClient();
   const [{ data: stores }, { data: defs }] = await Promise.all([
     sb.from("esther_stores").select("*").order("sort_order"),

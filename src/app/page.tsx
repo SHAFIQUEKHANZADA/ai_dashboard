@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { CalendarDays, PieChart, TrendingUp, Target, PhoneMissed, ArrowLeftRight, ArrowRight } from "lucide-react";
-import { getStores, getDashboardData } from "@/lib/data";
+import { getDashboardData } from "@/lib/data";
+import { isDrillMetric } from "@/lib/pages";
+import { requireUser, getAccessibleStores } from "@/lib/auth";
 import { Header } from "@/components/header";
 import { KpiCard } from "@/components/kpi-card";
 import { StatCard } from "@/components/stat-card";
@@ -25,19 +28,27 @@ export default async function DashboardPage({
   searchParams: Promise<{ store?: string; date?: string }>;
 }) {
   const sp = await searchParams;
-  const stores = await getStores();
+  const user = await requireUser();
+  const stores = await getAccessibleStores(user);
   const storeIds = stores.map((s) => s.id);
   const storeNames = new Map(stores.map((s) => [s.id, s.name]));
 
-  const storeId = sp.store && storeIds.includes(sp.store) ? sp.store : null; // null => group
+  // group total only for admin/group; store users default to their first store
+  const storeId = sp.store && storeIds.includes(sp.store)
+    ? sp.store
+    : user.canSeeGroup ? null : (storeIds[0] ?? null);
   const date = sp.date || chicagoToday();
 
   const data = await getDashboardData({ storeId, date, storeIds, storeNames });
 
-  const viewAll = (label: string) => (
-    <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand">
+  // build a drill-down link that keeps the current store + date
+  const drillHref = (metric: string) =>
+    `/calls?${new URLSearchParams({ metric, ...(storeId ? { store: storeId } : {}), date }).toString()}`;
+
+  const viewAll = (label: string, metric: string) => (
+    <Link href={drillHref(metric)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline">
       {label} <ArrowRight className="h-3.5 w-3.5" />
-    </span>
+    </Link>
   );
 
   return (
@@ -47,8 +58,8 @@ export default async function DashboardPage({
         store={storeId ?? "group"}
         date={date}
         lastUpdated={data.lastUpdated}
-        canSeeGroup
-        user={{ name: "McGrath Group", role: "Group view" }}
+        canSeeGroup={user.canSeeGroup}
+        user={{ name: user.name, email: user.email, role: user.role }}
       />
 
       {/* Row 1 — headline KPIs */}
@@ -58,11 +69,21 @@ export default async function DashboardPage({
         ))}
       </div>
 
-      {/* Row 2 — operational stat cards */}
+      {/* Row 2 — operational stat cards (drillable ones link to the actual calls) */}
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {data.secondary.map((m) => (
-          <StatCard key={m.key} metric={m} />
-        ))}
+        {data.secondary.map((m) =>
+          isDrillMetric(m.key) && !m.awaiting ? (
+            <Link
+              key={m.key}
+              href={drillHref(m.key)}
+              className="block rounded-xl transition hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+            >
+              <StatCard metric={m} />
+            </Link>
+          ) : (
+            <StatCard key={m.key} metric={m} />
+          )
+        )}
       </div>
 
       {/* Row 3 — charts */}
@@ -95,7 +116,7 @@ export default async function DashboardPage({
           }
         >
           <RecoveredTable rows={data.recovered} />
-          {data.recovered.length > 0 && viewAll("View All Recovered Opportunities")}
+          {data.recovered.length > 0 && viewAll("View All Recovered Opportunities", "recovered_count")}
         </Panel>
 
         <Panel
@@ -111,11 +132,12 @@ export default async function DashboardPage({
           }
         >
           <CallbacksTable rows={data.callbacks} />
-          {data.callbacks.length > 0 && viewAll("View All Missed Calls")}
+          {data.callbacks.length > 0 && viewAll("View All Missed Calls", "callbacks_needed")}
         </Panel>
 
         <Panel title="Transfers Breakdown" subtitle="Call transfers to dealership staff" icon={<ArrowLeftRight className="h-4 w-4" />}>
           <TransfersBreakdown successful={data.transfers.successful} failed={data.transfers.failed} total={data.transfers.total} />
+          {data.transfers.total > 0 && viewAll("View All Transfers", "transfers")}
         </Panel>
       </div>
     </>

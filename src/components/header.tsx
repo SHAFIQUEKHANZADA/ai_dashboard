@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, ChevronDown } from "lucide-react";
 import { LiveRefresh } from "@/components/live-refresh";
+import { UserMenu, type MenuUser } from "@/components/user-menu";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 
 interface StoreOpt {
@@ -23,7 +24,7 @@ export function Header({
   date: string;
   lastUpdated: string | null;
   canSeeGroup: boolean;
-  user: { name: string; role: string };
+  user: MenuUser;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -87,16 +88,8 @@ export function Header({
             </div>
           </div>
 
-          {/* User */}
-          <div className="flex items-center gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 shadow-[var(--shadow)]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
-              {user.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-            </span>
-            <div className="leading-tight">
-              <div className="text-[13px] font-semibold text-ink">{user.name}</div>
-              <div className="text-[11px] text-muted">{user.role}</div>
-            </div>
-          </div>
+          {/* Account */}
+          <UserMenu user={user} />
         </div>
       </div>
 

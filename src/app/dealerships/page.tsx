@@ -1,9 +1,11 @@
+import { requireTab } from "@/lib/auth";
 import { PageTop } from "@/components/page-top";
 import { defaultRange, getStoreSummaries } from "@/lib/pages";
 
 export const dynamic = "force-dynamic";
 
 export default async function DealershipsPage() {
+  await requireTab("/dealerships");
   const { from, to } = defaultRange(14);
   const summaries = await getStoreSummaries(from, to);
 

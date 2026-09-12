@@ -1,3 +1,4 @@
+import { requireTab } from "@/lib/auth";
 import { PageTop, Tile } from "@/components/page-top";
 import { StoreFilter } from "@/components/store-filter";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -17,6 +18,7 @@ const OUTCOME: Record<string, { label: string; cls: string }> = {
 };
 
 export default async function CallAnalyticsPage({ searchParams }: { searchParams: Promise<{ store?: string }> }) {
+  await requireTab("/call-analytics");
   const sp = await searchParams;
   const { stores, storeId, scopeIds, names } = await resolveScope(sp.store);
   const { from, to } = defaultRange(14);

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { getSessionUser } from "@/lib/auth";
+import { UserMenu } from "@/components/user-menu";
 
-export function PageTop({
+export async function PageTop({
   title,
   subtitle,
   right,
@@ -9,13 +11,17 @@ export function PageTop({
   subtitle?: string;
   right?: ReactNode;
 }) {
+  const user = await getSessionUser();
   return (
     <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-[26px]">{title}</h1>
         {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
       </div>
-      {right && <div className="flex flex-wrap items-center gap-2.5">{right}</div>}
+      <div className="flex flex-wrap items-center gap-2.5">
+        {right}
+        {user && <UserMenu user={{ name: user.name, email: user.email, role: user.role }} />}
+      </div>
     </header>
   );
 }

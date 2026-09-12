@@ -215,7 +215,7 @@ create policy p_read on esther_dashboard_widgets for select using (auth.role() =
 insert into esther_stores (key, name, ghl_location_id, mykaarma_dealer_key, sort_order) values
   ('mcgrath_honda_stcharles', 'McGrath Honda of St. Charles', 'HU18sX5xyiO7gIs3Bwyx', 'mcgrath_honda_stcharles', 1),
   ('mcgrath_honda_elgin',     'McGrath Honda of Elgin',       'tj3HUTFhDGeHiw2B8HG8', 'mcgrath_honda_elgin',     2),
-  ('mcgrath_kia_stcharles',   'McGrath Kia of St. Charles',   null,                   'mcgrath_kia_stcharles',   3)
+  ('mcgrath_kia_stcharles',   'McGrath Kia of St. Charles',   'D1vFnxQpq6KVvR2VZYQk', 'mcgrath_kia_stcharles',   3)
 on conflict (key) do update
   set name = excluded.name,
       ghl_location_id = coalesce(excluded.ghl_location_id, esther_stores.ghl_location_id),
@@ -226,7 +226,7 @@ on conflict (key) do update
 insert into esther_metric_definitions (key, label, unit, good_direction, display_group, sort_order, formula) values
   ('total_calls',          'Total Calls',            'count',    'up',   'headline',  1, null),
   ('appointments_booked',  'Appointments Booked',    'count',    'up',   'headline',  2, null),
-  ('booking_pct',          'Booking %',              'percent',  'up',   'headline',  3, 'appointments_booked / nullif(eligible_calls,0)'),
+  ('booking_pct',          'Appointment Conversion Rate', 'percent', 'up', 'headline', 3, 'appointments_booked / nullif(eligible_calls,0)'),
   ('cost_per_booking',     'Cost per Booking',       'currency', 'down', 'headline',  4, 'ai_spend / nullif(appointments_booked,0)'),
   ('ai_spend',             'AI Spend',               'currency', 'up',   'headline',  5, null),
   ('transfers',            'Transfers',              'count',    'up',   'secondary', 6, null),

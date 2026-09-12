@@ -1,3 +1,4 @@
+import { requireTab } from "@/lib/auth";
 import { PageTop, Tile } from "@/components/page-top";
 import { StoreFilter } from "@/components/store-filter";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -19,6 +20,7 @@ const TAG_TONE: Record<string, string> = {
 };
 
 export default async function ConversationsPage({ searchParams }: { searchParams: Promise<{ store?: string }> }) {
+  await requireTab("/conversations");
   const sp = await searchParams;
   const { stores, storeId, scopeIds, names } = await resolveScope(sp.store);
   const { from, to } = defaultRange(14);

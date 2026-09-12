@@ -1,3 +1,4 @@
+import { requireTab } from "@/lib/auth";
 import { PageTop, Tile } from "@/components/page-top";
 import { StoreFilter } from "@/components/store-filter";
 import { Panel } from "@/components/panel";
@@ -13,6 +14,7 @@ function fmtMoney(v: number | null) {
 }
 
 export default async function OpportunitiesPage({ searchParams }: { searchParams: Promise<{ store?: string }> }) {
+  await requireTab("/opportunities");
   const sp = await searchParams;
   const { stores, storeId } = await resolveScope(sp.store);
   const scope = storeId ? stores.filter((s) => s.id === storeId) : stores;
