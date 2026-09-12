@@ -24,6 +24,19 @@ function parseHiddenTabs(formData: FormData, role: Role): string[] {
   return RESTRICTABLE_TABS.map((t) => t.href).filter((href) => !allowed.has(href));
 }
 
+// auth.users is shared with the dispatch app, so a person may already exist there
+// without an Esther profile. Find them so "Add member" can adopt them.
+async function findUserByEmail(sb: ReturnType<typeof createServiceClient>, email: string) {
+  for (let page = 1; page <= 30; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) return null;
+    const u = data.users.find((x) => (x.email || "").toLowerCase() === email.toLowerCase());
+    if (u) return u;
+    if (data.users.length < 200) return null;
+  }
+  return null;
+}
+
 // store grants only matter for the 'store' role; admin/group see everything
 async function setGrants(sb: ReturnType<typeof createServiceClient>, userId: string, role: Role, storeIds: string[]) {
   await sb.from("esther_user_stores").delete().eq("user_id", userId);
@@ -49,10 +62,17 @@ export async function createMember(_prev: unknown, formData: FormData): Promise<
     email_confirm: true,
     user_metadata: { full_name: name },
   });
+
+  let uid: string;
   if (error || !data.user) {
-    return { error: error?.message?.includes("already") ? "A user with that email already exists." : (error?.message ?? "Could not create user.") };
+    // already in shared auth → adopt them into the dashboard + set the given password
+    const existing = await findUserByEmail(sb, email);
+    if (!existing) return { error: error?.message ?? "Could not create user." };
+    uid = existing.id;
+    await sb.auth.admin.updateUserById(uid, { password, user_metadata: { full_name: name } });
+  } else {
+    uid = data.user.id;
   }
-  const uid = data.user.id;
   const { error: pErr } = await sb.from("esther_profiles")
     .upsert({ id: uid, email, full_name: name, role, hidden_tabs: parseHiddenTabs(formData, role) });
   if (pErr) return { error: pErr.message };
