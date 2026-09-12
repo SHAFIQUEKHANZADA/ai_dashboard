@@ -4,6 +4,7 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { Panel } from "@/components/panel";
 import { EmptyState } from "@/components/empty-state";
 import { resolveScope, defaultRange, getCalls } from "@/lib/pages";
+import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,6 @@ const OUTCOME: Record<string, { label: string; cls: string }> = {
   info_only: { label: "Info only", cls: "bg-blue/10 text-blue" },
   no_transcript: { label: "No transcript", cls: "bg-muted/15 text-muted" },
 };
-
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
 
 export default async function CallAnalyticsPage({ searchParams }: { searchParams: Promise<{ store?: string }> }) {
   const sp = await searchParams;
@@ -63,7 +60,7 @@ export default async function CallAnalyticsPage({ searchParams }: { searchParams
                   const o = r.outcome ? OUTCOME[r.outcome] : null;
                   return (
                     <tr key={r.id} className="border-b border-line/60 last:border-0">
-                      <td className="py-2.5 text-muted">{fmt(r.started_at)}</td>
+                      <td className="py-2.5 text-muted">{fmtDateTime(r.started_at)}</td>
                       <td className="py-2.5 text-ink-soft">{r.store}</td>
                       <td className="py-2.5 text-ink-soft capitalize">{r.department ?? "—"}</td>
                       <td className="py-2.5 text-ink-soft">{r.intent ?? "—"}</td>

@@ -4,12 +4,9 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { Panel } from "@/components/panel";
 import { EmptyState } from "@/components/empty-state";
 import { resolveScope, defaultRange, getCalls } from "@/lib/pages";
+import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
 
 // tags the operator cares about get color; the rest are neutral chips
 const TAG_TONE: Record<string, string> = {
@@ -50,7 +47,7 @@ export default async function ConversationsPage({ searchParams }: { searchParams
             {data.rows.slice(0, 80).map((r) => (
               <li key={r.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted whitespace-nowrap">{fmt(r.started_at)}</span>
+                  <span className="text-xs text-muted whitespace-nowrap">{fmtDateTime(r.started_at)}</span>
                   <span className="text-[13px] font-medium text-ink-soft">{r.store}</span>
                   {r.intent && <span className="text-[13px] text-muted">· {r.intent}</span>}
                 </div>

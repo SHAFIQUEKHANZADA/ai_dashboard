@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Calendar, ChevronDown, Sun, Moon } from "lucide-react";
+import { Calendar, ChevronDown } from "lucide-react";
 import { LiveRefresh } from "@/components/live-refresh";
+import { fmtDate, fmtDateTime } from "@/lib/format";
 
 interface StoreOpt {
   id: string;
@@ -35,12 +35,8 @@ export function Header({
     router.push(`/?${p.toString()}`);
   }
 
-  const prettyDate = new Date(date + "T00:00:00Z").toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
-  });
-  const updated = lastUpdated
-    ? new Date(lastUpdated).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
-    : "—";
+  const prettyDate = fmtDate(date);
+  const updated = lastUpdated ? `${fmtDateTime(lastUpdated)} CT` : "—";
 
   return (
     <header className="mb-5">
@@ -91,8 +87,6 @@ export function Header({
             </div>
           </div>
 
-          <ThemeToggle />
-
           {/* User */}
           <div className="flex items-center gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 shadow-[var(--shadow)]">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
@@ -120,29 +114,3 @@ export function Header({
   );
 }
 
-function ThemeToggle() {
-  const [dark, setDark] = useState(false);
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("esther-theme");
-      const isDark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setDark(isDark);
-      document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
-    } catch { /* ignore */ }
-  }, []);
-  function toggle() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
-    try { localStorage.setItem("esther-theme", next ? "dark" : "light"); } catch { /* ignore */ }
-  }
-  return (
-    <button
-      onClick={toggle}
-      className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-muted shadow-[var(--shadow)] hover:text-ink"
-      aria-label="Toggle theme"
-    >
-      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
-  );
-}

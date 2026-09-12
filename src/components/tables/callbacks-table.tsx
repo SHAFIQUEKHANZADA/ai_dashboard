@@ -1,10 +1,6 @@
 import { EmptyState } from "@/components/empty-state";
+import { fmtTime } from "@/lib/format";
 import type { CallbackRow } from "@/lib/types";
-
-function fmtTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
 
 export function CallbacksTable({ rows }: { rows: CallbackRow[] }) {
   if (!rows.length) return <EmptyState label="No callbacks needed" />;

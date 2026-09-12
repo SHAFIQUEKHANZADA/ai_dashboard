@@ -1,5 +1,27 @@
 import type { GoodDirection, MetricUnit } from "./types";
 
+// All dealership data is in Central Time (the GHL/myKaarma zone). Every displayed
+// timestamp uses this — never the viewer's browser timezone.
+export const STORE_TZ = "America/Chicago";
+
+export function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: STORE_TZ,
+  });
+}
+
+export function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit", timeZone: STORE_TZ,
+  });
+}
+
+export function fmtDate(iso: string): string {
+  // `iso` may be a YYYY-MM-DD date string or a full timestamp.
+  const d = iso.length === 10 ? new Date(iso + "T12:00:00Z") : new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: STORE_TZ });
+}
+
 // Format a metric value for display. Returns "—" for null (awaiting data).
 export function formatMetric(value: number | null, unit: MetricUnit | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";

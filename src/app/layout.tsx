@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
+    <html lang="en" data-theme="light" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
         <Sidebar />
         <div className="lg:pl-[220px]">

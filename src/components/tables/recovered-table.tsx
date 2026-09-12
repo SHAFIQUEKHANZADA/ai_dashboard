@@ -1,11 +1,6 @@
-import { formatMetric } from "@/lib/format";
+import { formatMetric, fmtTime } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
 import type { RecoveredRow } from "@/lib/types";
-
-function fmtTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
 
 export function RecoveredTable({ rows }: { rows: RecoveredRow[] }) {
   if (!rows.length) return <EmptyState label="Awaiting data" />;

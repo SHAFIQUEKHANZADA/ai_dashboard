@@ -4,6 +4,7 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { Panel } from "@/components/panel";
 import { EmptyState } from "@/components/empty-state";
 import { resolveScope, defaultRange, getAppointments } from "@/lib/pages";
+import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +13,6 @@ const SOURCE: Record<string, { label: string; cls: string }> = {
   dms: { label: "DMS", cls: "bg-blue/10 text-blue" },
   online: { label: "Online", cls: "bg-purple/10 text-purple" },
 };
-
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
 
 export default async function AppointmentsPage({ searchParams }: { searchParams: Promise<{ store?: string; source?: string }> }) {
   const sp = await searchParams;
@@ -58,7 +55,7 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
                   const s = SOURCE[r.source] ?? { label: r.source, cls: "bg-muted/15 text-muted" };
                   return (
                     <tr key={r.id} className="border-b border-line/60 last:border-0">
-                      <td className="py-2.5 text-muted">{fmt(r.start_time)}</td>
+                      <td className="py-2.5 text-muted">{fmtDateTime(r.start_time)}</td>
                       <td className="py-2.5 text-ink-soft">{r.store}</td>
                       <td className="py-2.5 text-ink-soft">{r.customer_name ?? "—"}</td>
                       <td className="py-2.5 text-ink-soft">{r.vehicle ?? "—"}</td>
