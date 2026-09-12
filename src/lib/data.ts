@@ -16,7 +16,9 @@ import type {
 // (can_see_store) enforces access per user. App-level scope is still applied here.
 
 // Metrics with no live feed yet — always render "Awaiting data", never a fake 0.
-const AWAITING = new Set(["ai_spend", "cost_per_booking", "recovered_count", "secret_shopper_score"]);
+// ai_spend + cost_per_booking now flow from the GHL billing import; they fall back
+// to "Awaiting data" on their own whenever a day has no imported spend (value null).
+const AWAITING = new Set(["recovered_count", "secret_shopper_score"]);
 const SUM_KEYS = new Set([
   "total_calls", "appointments_booked", "eligible_calls", "transfers",
   "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count", "ai_spend",
@@ -64,8 +66,19 @@ function aggregate(rows: DM[], key: string): number | null {
     const elig = rows.reduce((s, r) => s + (num(r, "eligible_calls") ?? 0), 0);
     return elig > 0 ? (appts / elig) * 100 : null;
   }
+  if (key === "cost_per_booking") {
+    // group value = total real AI spend ÷ total bookings (never an average of averages)
+    const spendVals = rows.map((r) => num(r, "ai_spend")).filter((v): v is number => v !== null);
+    if (!spendVals.length) return null; // no billing imported → awaiting, not $0
+    const spend = spendVals.reduce((a, b) => a + b, 0);
+    const bookings = rows.reduce((s, r) => s + (num(r, "appointments_booked") ?? 0), 0);
+    return bookings > 0 ? spend / bookings : null;
+  }
   if (SUM_KEYS.has(key)) {
-    return rows.reduce((s, r) => s + (num(r, key) ?? 0), 0);
+    // sum only real values; if every row is null (e.g. no billing yet) return null
+    // so the card shows "Awaiting data" instead of a fake 0.
+    const vals = rows.map((r) => num(r, key)).filter((v): v is number => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
   }
   // average (e.g. secret_shopper_score)
   const vals = rows.map((r) => num(r, key)).filter((v): v is number => v !== null);
@@ -107,15 +120,16 @@ export async function getDashboardData(opts: {
   const prevRows = (prevRes.data ?? []) as DM[];
 
   const buildMetric = (d: MetricDefinition): MetricValue => {
-    const awaiting = AWAITING.has(d.key);
+    const forced = AWAITING.has(d.key);
+    const value = forced ? null : aggregate(cur, d.key);
     return {
       key: d.key,
       label: d.label,
       unit: d.unit,
       good_direction: d.good_direction,
-      value: awaiting ? null : aggregate(cur, d.key),
-      previous: awaiting ? null : aggregate(prevRows, d.key),
-      awaiting,
+      value,
+      previous: forced ? null : aggregate(prevRows, d.key),
+      awaiting: forced || value === null, // null data => "Awaiting data", never a fake 0
     };
   };
 
