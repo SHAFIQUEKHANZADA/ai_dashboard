@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, ChevronDown } from "lucide-react";
 import { LiveRefresh } from "@/components/live-refresh";
 import { UserMenu, type MenuUser } from "@/components/user-menu";
-import { fmtDate, fmtDateTime } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
 
 interface StoreOpt {
   id: string;
@@ -37,7 +37,6 @@ export function Header({
   }
 
   const prettyDate = fmtDate(date);
-  const updated = lastUpdated ? `${fmtDateTime(lastUpdated)} CT` : "—";
 
   return (
     <header className="mb-5">
@@ -99,9 +98,8 @@ export function Header({
           <span className="h-2 w-2 rounded-full bg-green" />
           All Systems Operational
         </span>
-        <LiveRefresh intervalSec={60} />
+        <LiveRefresh lastSync={lastUpdated} intervalSec={60} />
         <span>Showing {prettyDate}</span>
-        <span>Last updated: {updated}</span>
       </div>
     </header>
   );
