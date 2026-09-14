@@ -36,7 +36,9 @@ export interface DashboardData {
   trend: TrendPoint[];
   transfers: { successful: number; failed: number; total: number };
   callbacks: CallbackRow[];
+  callbacksTotal: number; // true total for the day (badge); `callbacks` is only the recent preview
   recovered: RecoveredRow[];
+  recoveredTotal: number;
   lastUpdated: string | null;
 }
 
@@ -108,11 +110,14 @@ export async function getDashboardData(opts: {
     sb.from("esther_daily_metrics").select("*").eq("local_date", prevDate).in("store_id", scopeIds),
     sb.from("esther_daily_metrics").select("store_id,local_date,total_calls,appointments_booked")
       .gte("local_date", start14Date).lte("local_date", date).in("store_id", scopeIds),
+    // Only the recent 5 as a preview; the true total for the badge comes from
+    // the rolled-up metric below, so the panel and the KPI card always agree.
     sb.from("esther_calls").select("started_at,intent,local_date,store_id")
       .eq("local_date", date).eq("callback_needed", true).in("store_id", scopeIds)
-      .order("started_at").limit(8),
+      .order("started_at", { ascending: false }).limit(5),
     sb.from("esther_recovered_opportunities").select("*")
-      .eq("local_date", date).in("store_id", scopeIds).order("recovered_at").limit(8),
+      .eq("local_date", date).in("store_id", scopeIds)
+      .order("recovered_at", { ascending: false }).limit(5),
   ]);
 
   const defs = (defsRes.data ?? []) as MetricDefinition[];
@@ -203,7 +208,9 @@ export async function getDashboardData(opts: {
     trend,
     transfers,
     callbacks,
+    callbacksTotal: aggregate(cur, "callbacks_needed") ?? 0,
     recovered,
+    recoveredTotal: aggregate(cur, "recovered_count") ?? 0,
     lastUpdated,
   };
 }

@@ -108,15 +108,15 @@ export default async function DashboardPage({
           subtitle="Customers we re-engaged and converted"
           icon={<Target className="h-4 w-4" />}
           headerRight={
-            data.recovered.length ? (
+            data.recoveredTotal ? (
               <span className="rounded-full bg-green/10 px-2.5 py-1 text-[11px] font-semibold text-green">
-                {data.recovered.length} recovered
+                {data.recoveredTotal} recovered
               </span>
             ) : undefined
           }
         >
           <RecoveredTable rows={data.recovered} />
-          {data.recovered.length > 0 && viewAll("View All Recovered Opportunities", "recovered_count")}
+          {data.recoveredTotal > 0 && viewAll("View All Recovered Opportunities", "recovered_count")}
         </Panel>
 
         <Panel
@@ -124,15 +124,15 @@ export default async function DashboardPage({
           subtitle="Follow up on these opportunities"
           icon={<PhoneMissed className="h-4 w-4" />}
           headerRight={
-            data.callbacks.length ? (
+            data.callbacksTotal ? (
               <span className="rounded-full bg-red/10 px-2.5 py-1 text-[11px] font-semibold text-red">
-                {data.callbacks.length} callbacks
+                {data.callbacksTotal} callbacks
               </span>
             ) : undefined
           }
         >
           <CallbacksTable rows={data.callbacks} />
-          {data.callbacks.length > 0 && viewAll("View All Missed Calls", "callbacks_needed")}
+          {data.callbacksTotal > 0 && viewAll("View All Missed Calls", "callbacks_needed")}
         </Panel>
 
         <Panel title="Transfers Breakdown" subtitle="Call transfers to dealership staff" icon={<ArrowLeftRight className="h-4 w-4" />}>
