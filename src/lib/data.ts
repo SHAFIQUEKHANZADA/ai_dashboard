@@ -19,6 +19,12 @@ import type {
 // ai_spend + cost_per_booking now flow from the GHL billing import; they fall back
 // to "Awaiting data" on their own whenever a day has no imported spend (value null).
 const AWAITING = new Set(["secret_shopper_score"]);
+
+// Rough dollar value credited to each recovered opportunity. myKaarma doesn't
+// give us a real per-RO figure, so this is a labeled ESTIMATE (avg service RO) —
+// change this one number if Reid wants a different assumption.
+const RECOVERED_VALUE_ESTIMATE = 345;
+
 const SUM_KEYS = new Set([
   "total_calls", "appointments_booked", "eligible_calls", "transfers",
   "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count", "ai_spend",
@@ -39,6 +45,7 @@ export interface DashboardData {
   callbacksTotal: number; // true total for the day (badge); `callbacks` is only the recent preview
   recovered: RecoveredRow[];
   recoveredTotal: number;
+  recoveredValueEst: number; // rough estimated $ recovered (recoveredTotal × per-RO estimate)
   lastUpdated: string | null;
 }
 
@@ -67,6 +74,12 @@ function aggregate(rows: DM[], key: string): number | null {
     const appts = rows.reduce((s, r) => s + (num(r, "appointments_booked") ?? 0), 0);
     const elig = rows.reduce((s, r) => s + (num(r, "eligible_calls") ?? 0), 0);
     return elig > 0 ? (appts / elig) * 100 : null;
+  }
+  if (key === "containment_rate") {
+    // weighted across stores: total contained ÷ total eligible (never an avg of %s)
+    const contained = rows.reduce((s, r) => s + (num(r, "contained_calls") ?? 0), 0);
+    const elig = rows.reduce((s, r) => s + (num(r, "eligible_calls") ?? 0), 0);
+    return elig > 0 ? (contained / elig) * 100 : null;
   }
   if (key === "cost_per_booking") {
     // group value = total real AI spend ÷ total bookings (never an average of averages)
@@ -190,7 +203,8 @@ export async function getDashboardData(opts: {
   );
 
   const recovered: RecoveredRow[] = ((recRes.data ?? []) as { recovered_at: string; intent: string | null; outcome: string; value: number | null }[]).map(
-    (r) => ({ time: r.recovered_at, intent: r.intent ? humanizeIntent(r.intent) : null, outcome: r.outcome ?? "Booked", value: r.value }),
+    // no real per-RO value from myKaarma → show the labeled estimate
+    (r) => ({ time: r.recovered_at, intent: r.intent ? humanizeIntent(r.intent) : null, outcome: r.outcome ?? "Booked", value: r.value ?? RECOVERED_VALUE_ESTIMATE }),
   );
 
   const lastUpdated =
@@ -211,6 +225,7 @@ export async function getDashboardData(opts: {
     callbacksTotal: aggregate(cur, "callbacks_needed") ?? 0,
     recovered,
     recoveredTotal: aggregate(cur, "recovered_count") ?? 0,
+    recoveredValueEst: (aggregate(cur, "recovered_count") ?? 0) * RECOVERED_VALUE_ESTIMATE,
     lastUpdated,
   };
 }

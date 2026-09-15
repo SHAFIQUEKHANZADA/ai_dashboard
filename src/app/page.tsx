@@ -63,7 +63,7 @@ export default async function DashboardPage({
       />
 
       {/* Row 1 — headline KPIs */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         {data.headline.map((m) => (
           <KpiCard key={m.key} metric={m} />
         ))}
@@ -105,7 +105,7 @@ export default async function DashboardPage({
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Panel
           title="Recovered Opportunities"
-          subtitle="Customers we re-engaged and converted"
+          subtitle={`Customers we re-engaged and converted${data.recoveredValueEst ? ` · ~$${data.recoveredValueEst.toLocaleString()} est. value` : ""}`}
           icon={<Target className="h-4 w-4" />}
           headerRight={
             data.recoveredTotal ? (

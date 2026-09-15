@@ -12,7 +12,7 @@ export function RecoveredTable({ rows }: { rows: RecoveredRow[] }) {
             <th className="pb-2 font-semibold">Time</th>
             <th className="pb-2 font-semibold">Customer Intent</th>
             <th className="pb-2 font-semibold">Outcome</th>
-            <th className="pb-2 text-right font-semibold">Value</th>
+            <th className="pb-2 text-right font-semibold">Est. Value</th>
           </tr>
         </thead>
         <tbody>
