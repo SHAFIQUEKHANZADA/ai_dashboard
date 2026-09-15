@@ -46,7 +46,86 @@ export interface DashboardData {
   recovered: RecoveredRow[];
   recoveredTotal: number;
   recoveredValueEst: number; // rough estimated $ recovered (recoveredTotal × per-RO estimate)
+  insights: CallInsights;
   lastUpdated: string | null;
+}
+
+// Claude-classified call insights for the day (Reid's #1/#2/#4/#5). Built from
+// esther_call_classifications joined to the day's calls; unclassified calls fall
+// back to their coarse tag intent so the donut still totals to all calls.
+export interface CallInsights {
+  intentDetail: IntentSlice[];
+  transferReasons: { key: string; label: string; count: number; pct: number }[];
+  humanRequested: number;
+  callsConsidered: number; // denominator for human-preference (calls in scope/day)
+  sentimentAvg: number | null;
+  sentimentDeteriorated: number;
+  sentimentSampled: number;
+  classifiedShare: number; // 0..1 — how much of the day is classified yet
+}
+
+function titleCase(s: string): string {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export async function getCallInsights(scopeIds: string[], date: string): Promise<CallInsights> {
+  const sb = createServiceClient();
+  const { data: calls } = await sb
+    .from("esther_calls")
+    .select("ghl_message_id,intent,transferred")
+    .eq("local_date", date)
+    .in("store_id", scopeIds);
+  const rows = calls ?? [];
+  const ids = rows.map((r) => r.ghl_message_id).filter(Boolean) as string[];
+
+  const cls = new Map<string, { intent_detail: string | null; transfer_reason: string | null; human_requested: boolean | null; sentiment_open: number | null; sentiment_close: number | null }>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await sb
+      .from("esther_call_classifications")
+      .select("ghl_message_id,intent_detail,transfer_reason,human_requested,sentiment_open,sentiment_close")
+      .in("ghl_message_id", ids.slice(i, i + 200));
+    for (const c of data ?? []) cls.set(c.ghl_message_id, c);
+  }
+
+  const intentCounts: Record<string, number> = {};
+  const reasonCounts: Record<string, number> = {};
+  let humanRequested = 0, sentSum = 0, sentN = 0, deteriorated = 0, classified = 0;
+  for (const r of rows) {
+    const c = r.ghl_message_id ? cls.get(r.ghl_message_id) : undefined;
+    if (c) classified++;
+    const label = c?.intent_detail || (r.intent ? humanizeIntent(r.intent) : "Unknown");
+    intentCounts[label] = (intentCounts[label] ?? 0) + 1;
+    if (r.transferred) {
+      const reason = c?.transfer_reason || "unknown";
+      reasonCounts[reason] = (reasonCounts[reason] ?? 0) + 1;
+    }
+    if (c?.human_requested) humanRequested++;
+    if (c && c.sentiment_close != null) {
+      sentSum += c.sentiment_close;
+      sentN++;
+      if (c.sentiment_open != null && c.sentiment_close < c.sentiment_open) deteriorated++;
+    }
+  }
+  const total = rows.length;
+  const intentDetail: IntentSlice[] = Object.entries(intentCounts)
+    .map(([k, count]) => ({ key: k, label: k, count, pct: total ? Math.round((count / total) * 100) : 0 }))
+    .sort((a, b) => b.count - a.count);
+  const transferReasons = Object.entries(reasonCounts)
+    .map(([k, count]) => ({ key: k, label: titleCase(k), count, pct: 0 }))
+    .sort((a, b) => b.count - a.count);
+  const rTotal = transferReasons.reduce((s, r) => s + r.count, 0);
+  for (const r of transferReasons) r.pct = rTotal ? Math.round((r.count / rTotal) * 100) : 0;
+
+  return {
+    intentDetail,
+    transferReasons,
+    humanRequested,
+    callsConsidered: total,
+    sentimentAvg: sentN ? Math.round(sentSum / sentN) : null,
+    sentimentDeteriorated: deteriorated,
+    sentimentSampled: sentN,
+    classifiedShare: total ? classified / total : 0,
+  };
 }
 
 interface DM {
@@ -210,6 +289,8 @@ export async function getDashboardData(opts: {
   const lastUpdated =
     cur.map((r) => r.updated_at as string).filter(Boolean).sort().pop() ?? null;
 
+  const insights = await getCallInsights(scopeIds, date);
+
   return {
     date,
     scope: storeId ?? "group",
@@ -226,6 +307,7 @@ export async function getDashboardData(opts: {
     recovered,
     recoveredTotal: aggregate(cur, "recovered_count") ?? 0,
     recoveredValueEst: (aggregate(cur, "recovered_count") ?? 0) * RECOVERED_VALUE_ESTIMATE,
+    insights,
     lastUpdated,
   };
 }

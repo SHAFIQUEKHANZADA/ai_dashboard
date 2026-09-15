@@ -93,8 +93,8 @@ export default async function DashboardPage({
             <AppointmentsByStore data={data.apptsByStore} />
           </Panel>
         )}
-        <Panel title="Customer Intent" subtitle="Call reason and customer intent" icon={<PieChart className="h-4 w-4" />}>
-          <CustomerIntent slices={data.intent} total={data.intentTotal} />
+        <Panel title="Customer Intent" subtitle="Call reason — AI-classified from each call" icon={<PieChart className="h-4 w-4" />}>
+          <CustomerIntent slices={data.insights.intentDetail} total={data.insights.callsConsidered || data.intentTotal} />
         </Panel>
         <Panel title="Daily Calls & Bookings Trend" subtitle="Last 14 days" icon={<TrendingUp className="h-4 w-4" />}>
           <CallsBookingsTrend data={data.trend} />
@@ -109,7 +109,7 @@ export default async function DashboardPage({
           icon={<Target className="h-4 w-4" />}
           headerRight={
             data.recoveredTotal ? (
-              <span className="rounded-full bg-green/10 px-2.5 py-1 text-[11px] font-semibold text-green">
+              <span className="whitespace-nowrap rounded-full bg-green/10 px-2.5 py-1 text-[11px] font-semibold text-green">
                 {data.recoveredTotal} recovered
               </span>
             ) : undefined
@@ -125,7 +125,7 @@ export default async function DashboardPage({
           icon={<PhoneMissed className="h-4 w-4" />}
           headerRight={
             data.callbacksTotal ? (
-              <span className="rounded-full bg-red/10 px-2.5 py-1 text-[11px] font-semibold text-red">
+              <span className="whitespace-nowrap rounded-full bg-red/10 px-2.5 py-1 text-[11px] font-semibold text-red">
                 {data.callbacksTotal} callbacks
               </span>
             ) : undefined
@@ -136,8 +136,58 @@ export default async function DashboardPage({
         </Panel>
 
         <Panel title="Transfers Breakdown" subtitle="Call transfers to dealership staff" icon={<ArrowLeftRight className="h-4 w-4" />}>
-          <TransfersBreakdown successful={data.transfers.successful} failed={data.transfers.failed} total={data.transfers.total} />
+          <TransfersBreakdown successful={data.transfers.successful} failed={data.transfers.failed} total={data.transfers.total} reasons={data.insights.transferReasons} />
           {data.transfers.total > 0 && viewAll("View All Transfers", "transfers")}
+        </Panel>
+      </div>
+
+      {/* Row 5 — sentiment & human preference (AI-classified) */}
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Panel
+          title="Customer Sentiment"
+          subtitle={`AI-scored · ${data.insights.sentimentSampled} calls analyzed`}
+          icon={<TrendingUp className="h-4 w-4" />}
+        >
+          {data.insights.sentimentAvg === null ? (
+            <p className="text-sm text-muted">Awaiting AI analysis</p>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className={`text-4xl font-extrabold ${data.insights.sentimentAvg > 20 ? "text-green" : data.insights.sentimentAvg < -20 ? "text-red" : "text-amber"}`}>
+                {data.insights.sentimentAvg > 0 ? "+" : ""}{data.insights.sentimentAvg}
+              </span>
+              <span className="text-xs text-muted">avg closing<br />(−100 to +100)</span>
+            </div>
+          )}
+        </Panel>
+
+        <Panel
+          title="Sentiment Deteriorated"
+          subtitle="Calls that ended worse than they started"
+          icon={<PhoneMissed className="h-4 w-4" />}
+        >
+          <div className="flex items-baseline gap-2">
+            <span className={`text-4xl font-extrabold ${data.insights.sentimentDeteriorated ? "text-red" : "text-ink"}`}>
+              {data.insights.sentimentDeteriorated}
+            </span>
+            <span className="text-xs text-muted">of {data.insights.sentimentSampled} analyzed</span>
+          </div>
+        </Panel>
+
+        <Panel
+          title="Human Preference Rate"
+          subtitle="Customers who explicitly asked for a person"
+          icon={<Target className="h-4 w-4" />}
+        >
+          {data.insights.callsConsidered === 0 ? (
+            <p className="text-sm text-muted">No calls</p>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-extrabold text-ink">
+                {Math.round((100 * data.insights.humanRequested) / data.insights.callsConsidered)}%
+              </span>
+              <span className="text-xs text-muted">{data.insights.humanRequested} of {data.insights.callsConsidered} calls</span>
+            </div>
+          )}
         </Panel>
       </div>
     </>
