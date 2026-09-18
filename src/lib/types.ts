@@ -64,6 +64,7 @@ export interface MetricValue {
   value: number | null; // null => "Awaiting data" (never render a fake 0)
   previous: number | null;
   awaiting: boolean; // true when there is no source feeding this metric yet
+  estimated?: boolean; // value is a labeled estimate (e.g. AI spend before the billing CSV lands)
 }
 
 export interface IntentSlice {

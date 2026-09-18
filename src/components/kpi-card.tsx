@@ -23,11 +23,22 @@ export function KpiCard({ metric }: { metric: MetricValue }) {
       </div>
       <div className="mt-4 text-[13px] font-medium text-muted">{metric.label}</div>
       <div className="mt-1 text-[34px] font-extrabold leading-none tracking-tight text-ink">
-        {metric.awaiting ? <span className="text-[20px] text-muted">Awaiting data</span> : formatMetric(metric.value, metric.unit)}
+        {metric.awaiting ? (
+          <span className="text-[20px] text-muted">Awaiting data</span>
+        ) : (
+          <>
+            {metric.estimated && <span className="text-muted">~</span>}
+            {formatMetric(metric.value, metric.unit)}
+          </>
+        )}
       </div>
       <div className="mt-3">
         {metric.awaiting ? (
           <span className="text-xs text-muted">Source coming soon</span>
+        ) : metric.estimated ? (
+          <span className="whitespace-nowrap rounded-full bg-amber/10 px-2 py-0.5 text-[11px] font-semibold text-amber">
+            Estimated · trues up with billing
+          </span>
         ) : (
           <DeltaBadge current={metric.value} previous={metric.previous} goodDirection={metric.good_direction} />
         )}

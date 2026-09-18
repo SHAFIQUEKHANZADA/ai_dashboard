@@ -25,6 +25,14 @@ const AWAITING = new Set(["secret_shopper_score"]);
 // change this one number if Reid wants a different assumption.
 const RECOVERED_VALUE_ESTIMATE = 345;
 
+// Effective AI cost per call, derived from the imported GHL billing (Voice/AI $ ÷
+// calls) — group average was $0.326 across all stores, and per-store it held tight
+// ($0.29–0.35). Used to show a LIVE estimated AI Spend / Cost per Booking on days
+// that have no billed CSV yet (today, this week). The real billed figures replace
+// the estimate automatically as soon as a billing CSV covering those days is
+// imported. Update this if the plan's rate changes materially.
+const EST_COST_PER_CALL = 0.326;
+
 const SUM_KEYS = new Set([
   "total_calls", "appointments_booked", "eligible_calls", "transfers",
   "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count", "ai_spend",
@@ -218,7 +226,22 @@ export async function getDashboardData(opts: {
 
   const buildMetric = (d: MetricDefinition): MetricValue => {
     const forced = AWAITING.has(d.key);
-    const value = forced ? null : aggregate(cur, d.key);
+    let value = forced ? null : aggregate(cur, d.key);
+    let estimated = false;
+
+    // Spend cards: when a day has no imported billing yet (value null), fall back to
+    // a LIVE estimate from call volume × the billed effective rate, clearly labeled.
+    // Billed data always wins — importing the CSV replaces the estimate automatically.
+    if (!forced && value === null && (d.key === "ai_spend" || d.key === "cost_per_booking")) {
+      const calls = cur.reduce((s, r) => s + (num(r, "total_calls") ?? 0), 0);
+      const bookings = cur.reduce((s, r) => s + (num(r, "appointments_booked") ?? 0), 0);
+      const estSpend = calls > 0 ? calls * EST_COST_PER_CALL : null;
+      value = d.key === "ai_spend"
+        ? estSpend
+        : (estSpend !== null && bookings > 0 ? estSpend / bookings : null);
+      estimated = value !== null;
+    }
+
     return {
       key: d.key,
       label: d.label,
@@ -227,6 +250,7 @@ export async function getDashboardData(opts: {
       value,
       previous: forced ? null : aggregate(prevRows, d.key),
       awaiting: forced || value === null, // null data => "Awaiting data", never a fake 0
+      estimated,
     };
   };
 
