@@ -3,7 +3,6 @@ import {
   PhoneCall,
   CalendarDays,
   MessagesSquare,
-  Target,
   FileBarChart,
   Building2,
   Settings,
@@ -22,7 +21,9 @@ export const NAV: NavItem[] = [
   { label: "Call Analytics", href: "/call-analytics", icon: PhoneCall },
   { label: "Appointments", href: "/appointments", icon: CalendarDays },
   { label: "Conversations", href: "/conversations", icon: MessagesSquare },
-  { label: "Opportunities", href: "/opportunities", icon: Target },
+  // Opportunities tab hidden per Reid's request (2026-09-18). The /opportunities
+  // page still exists — restore this line (and the `Target` icon import) to bring
+  // it back.  { label: "Opportunities", href: "/opportunities", icon: Target },
   { label: "Reports", href: "/reports", icon: FileBarChart },
   { label: "Dealerships", href: "/dealerships", icon: Building2 },
   { label: "Settings", href: "/settings", icon: Settings },
