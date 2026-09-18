@@ -78,7 +78,8 @@ export async function getCallInsights(scopeIds: string[], date: string): Promise
     .from("esther_calls")
     .select("ghl_message_id,intent,transferred")
     .eq("local_date", date)
-    .in("store_id", scopeIds);
+    .in("store_id", scopeIds)
+    .not("tags", "cs", "{qa-line}"); // exclude QA/secret-shopper calls, like the rollup
   const rows = calls ?? [];
   const ids = rows.map((r) => r.ghl_message_id).filter(Boolean) as string[];
 
@@ -210,6 +211,7 @@ export async function getDashboardData(opts: {
     // the rolled-up metric below, so the panel and the KPI card always agree.
     sb.from("esther_calls").select("started_at,intent,local_date,store_id")
       .eq("local_date", date).eq("callback_needed", true).in("store_id", scopeIds)
+      .not("tags", "cs", "{qa-line}") // exclude QA/secret-shopper calls
       .order("started_at", { ascending: false }).limit(5),
     sb.from("esther_recovered_opportunities").select("*")
       .eq("local_date", date).in("store_id", scopeIds)
