@@ -16,14 +16,10 @@ import type {
 // (can_see_store) enforces access per user. App-level scope is still applied here.
 
 // Metrics with no live feed yet — always render "Awaiting data", never a fake 0.
-// ai_spend + cost_per_booking now flow from the GHL billing import; they fall back
-// to "Awaiting data" on their own whenever a day has no imported spend (value null).
-const AWAITING = new Set(["secret_shopper_score"]);
-
-// Rough dollar value credited to each recovered opportunity. myKaarma doesn't
-// give us a real per-RO figure, so this is a labeled ESTIMATE (avg service RO) —
-// change this one number if Reid wants a different assumption.
-const RECOVERED_VALUE_ESTIMATE = 345;
+// (ai_spend + cost_per_booking flow from the billing import; secret_shopper_score
+// now flows from the QA grader — both fall back to "Awaiting data" on their own
+// whenever the underlying data is missing.)
+const AWAITING = new Set<string>([]);
 
 // Effective AI cost per call, derived from the imported GHL billing (Voice/AI $ ÷
 // calls) — group average was $0.326 across all stores, and per-store it held tight
@@ -204,7 +200,7 @@ export async function getDashboardData(opts: {
   start14.setUTCDate(start14.getUTCDate() - 13);
   const start14Date = start14.toISOString().slice(0, 10);
 
-  const [defsRes, curRes, prevRes, trendRes, cbRes, recRes] = await Promise.all([
+  const [defsRes, curRes, prevRes, trendRes, cbRes, recRes, recValRes, qaRes] = await Promise.all([
     sb.from("esther_metric_definitions").select("*").eq("enabled", true).order("sort_order"),
     sb.from("esther_daily_metrics").select("*").eq("local_date", date).in("store_id", scopeIds),
     sb.from("esther_daily_metrics").select("*").eq("local_date", prevDate).in("store_id", scopeIds),
@@ -218,16 +214,34 @@ export async function getDashboardData(opts: {
     sb.from("esther_recovered_opportunities").select("*")
       .eq("local_date", date).in("store_id", scopeIds)
       .order("recovered_at", { ascending: false }).limit(5),
+    // all recovered rows for the day (value only) — to sum the true recovered value
+    sb.from("esther_recovered_opportunities").select("value")
+      .eq("local_date", date).in("store_id", scopeIds),
+    // Secret Shopper: the day's graded QA (qa-line) shop calls. QA runs from the
+    // St. Charles account but shops the whole group, so this is a group-level metric.
+    sb.from("esther_qa_scores").select("score").eq("local_date", date),
   ]);
 
   const defs = (defsRes.data ?? []) as MetricDefinition[];
   const cur = (curRes.data ?? []) as DM[];
   const prevRows = (prevRes.data ?? []) as DM[];
 
+  // Secret Shopper Score = average of the day's graded QA shop calls (0–100), or
+  // null when none graded yet (card shows "Awaiting data").
+  const qaScores = ((qaRes.data ?? []) as { score: number | null }[])
+    .map((r) => r.score).filter((s): s is number => s !== null);
+  const qaAvg = qaScores.length
+    ? Math.round(qaScores.reduce((a, b) => a + b, 0) / qaScores.length)
+    : null;
+
   const buildMetric = (d: MetricDefinition): MetricValue => {
     const forced = AWAITING.has(d.key);
     let value = forced ? null : aggregate(cur, d.key);
     let estimated = false;
+
+    // Secret Shopper Score comes from the QA grader (esther_qa_scores), not the
+    // daily rollup — average of the day's shop-call grades.
+    if (d.key === "secret_shopper_score") value = qaAvg;
 
     // Spend cards: when a day has no imported billing yet (value null), fall back to
     // a LIVE estimate from call volume × the billed effective rate, clearly labeled.
@@ -306,9 +320,14 @@ export async function getDashboardData(opts: {
   );
 
   const recovered: RecoveredRow[] = ((recRes.data ?? []) as { recovered_at: string; intent: string | null; outcome: string; value: number | null }[]).map(
-    // no real per-RO value from myKaarma → show the labeled estimate
-    (r) => ({ time: r.recovered_at, intent: r.intent ? humanizeIntent(r.intent) : null, outcome: r.outcome ?? "Booked", value: r.value ?? RECOVERED_VALUE_ESTIMATE }),
+    // value is the estimated price of the service they booked (set at ingest from
+    // the summary × the McGrath price book); null on days not yet re-rolled → "—".
+    (r) => ({ time: r.recovered_at, intent: r.intent ? humanizeIntent(r.intent) : null, outcome: r.outcome ?? "Booked", value: r.value }),
   );
+
+  // True recovered value = sum of each booking's estimated service price.
+  const recoveredValueEst = ((recValRes.data ?? []) as { value: number | null }[])
+    .reduce((s, r) => s + (r.value ?? 0), 0);
 
   const lastUpdated =
     cur.map((r) => r.updated_at as string).filter(Boolean).sort().pop() ?? null;
@@ -330,7 +349,7 @@ export async function getDashboardData(opts: {
     callbacksTotal: aggregate(cur, "callbacks_needed") ?? 0,
     recovered,
     recoveredTotal: aggregate(cur, "recovered_count") ?? 0,
-    recoveredValueEst: (aggregate(cur, "recovered_count") ?? 0) * RECOVERED_VALUE_ESTIMATE,
+    recoveredValueEst,
     insights,
     lastUpdated,
   };
