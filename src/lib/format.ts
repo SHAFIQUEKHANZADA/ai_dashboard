@@ -33,7 +33,8 @@ export function formatMetric(value: number | null, unit: MetricUnit | null): str
     case "percent":
       return `${value.toFixed(1)}%`;
     case "score":
-      return `${value.toFixed(1)} / 5.0`;
+      // Secret Shopper Score is graded 0–100 (5 rubric criteria × 20).
+      return `${Math.round(value)} / 100`;
     case "count":
     default:
       return value.toLocaleString();
