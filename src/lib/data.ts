@@ -51,6 +51,8 @@ export interface DashboardData {
   recoveredTotal: number;
   recoveredValueEst: number; // rough estimated $ recovered (recoveredTotal × per-RO estimate)
   insights: CallInsights;
+  appraisalsScheduled: number;   // said yes to a trade value today
+  appraisalsWantOptions: number; // of those, how many agreed to be approached
   lastUpdated: string | null;
 }
 
@@ -155,9 +157,26 @@ function num(row: DM | undefined, key: string): number | null {
 function aggregate(rows: DM[], key: string): number | null {
   if (rows.length === 0) return null;
   if (key === "booking_pct") {
-    const appts = rows.reduce((s, r) => s + (num(r, "appointments_booked") ?? 0), 0);
-    const elig = rows.reduce((s, r) => s + (num(r, "eligible_calls") ?? 0), 0);
-    return elig > 0 ? (appts / elig) * 100 : null;
+    // Weight each store's OWN rate by its eligible calls. Dividing
+    // sum(appointments_booked) by sum(eligible_calls) mixes two different
+    // populations: the rollup counts appointments_booked as every booked
+    // contact, while eligible_calls counts only service/sales calls that
+    // produced a transcript. On 18 Sep that put "Appointment Conversion Rate
+    // 220.4%" in front of the owner — 119 bookings over 54 eligible calls.
+    //
+    // The rollup's own booking_pct already divides like-for-like (see the
+    // booking_pct case in esther_ingest.rollup), so weighting those by
+    // eligible_calls gives the true group rate and can never exceed 100.
+    let weighted = 0;
+    let elig = 0;
+    for (const r of rows) {
+      const pct = num(r, "booking_pct");
+      const e = num(r, "eligible_calls") ?? 0;
+      if (pct === null || e <= 0) continue;
+      weighted += pct * e;
+      elig += e;
+    }
+    return elig > 0 ? weighted / elig : null;
   }
   if (key === "containment_rate") {
     // weighted across stores: total contained ÷ total eligible (never an avg of %s)
@@ -201,7 +220,8 @@ export async function getDashboardData(opts: {
   start14.setUTCDate(start14.getUTCDate() - 13);
   const start14Date = start14.toISOString().slice(0, 10);
 
-  const [defsRes, curRes, prevRes, trendRes, cbRes, recRes, recValRes, qaRes] = await Promise.all([
+  const [defsRes, curRes, prevRes, trendRes, cbRes, recRes, recValRes, qaRes,
+         apprRes, apprPrevRes] = await Promise.all([
     sb.from("esther_metric_definitions").select("*").eq("enabled", true).order("sort_order"),
     sb.from("esther_daily_metrics").select("*").eq("local_date", date).in("store_id", scopeIds),
     sb.from("esther_daily_metrics").select("*").eq("local_date", prevDate).in("store_id", scopeIds),
@@ -222,6 +242,13 @@ export async function getDashboardData(opts: {
     // Secret Shopper: the day's graded QA (qa-line) shop calls. QA runs from the
     // St. Charles account but shops the whole group, so this is a group-level metric.
     sb.from("esther_qa_scores").select("score").eq("local_date", date),
+    // Appraisals Scheduled — read straight from the equity table, not the daily
+    // rollup. Reid watches this while the customer is still in the lounge, so a
+    // number that waits on the 15-minute ingest would be no use to him.
+    sb.from("esther_equity_appraisals").select("id,wants_options")
+      .eq("local_date", date).in("store_id", scopeIds),
+    sb.from("esther_equity_appraisals").select("id")
+      .eq("local_date", prevDate).in("store_id", scopeIds),
   ]);
 
   const defs = (defsRes.data ?? []) as MetricDefinition[];
@@ -236,14 +263,29 @@ export async function getDashboardData(opts: {
     ? Math.round(qaScores.reduce((a, b) => a + b, 0) / qaScores.length)
     : null;
 
+  // Appraisals Scheduled — how many service customers said yes to a trade value.
+  const appraisals = (apprRes.data ?? []) as { id: number; wants_options: boolean }[];
+  const appraisalsScheduled = appraisals.length;
+  const appraisalsWantOptions = appraisals.filter((a) => a.wants_options).length;
+  const appraisalsPrev = ((apprPrevRes.data ?? []) as { id: number }[]).length;
+
   const buildMetric = (d: MetricDefinition): MetricValue => {
     const forced = AWAITING.has(d.key);
     let value = forced ? null : aggregate(cur, d.key);
+    let previous = forced ? null : aggregate(prevRows, d.key);
     let estimated = false;
 
     // Secret Shopper Score comes from the QA grader (esther_qa_scores), not the
     // daily rollup — average of the day's shop-call grades.
     if (d.key === "secret_shopper_score") value = qaAvg;
+
+    // Appraisals come from esther_equity_appraisals, same reasoning. Zero is a
+    // real answer here, not missing data: on a day nobody said yes the card
+    // should say 0, because "Awaiting data" would read as a broken feed.
+    if (d.key === "appraisals_scheduled") {
+      value = appraisalsScheduled;
+      previous = appraisalsPrev;
+    }
 
     // Spend cards: when a day has no imported billing yet (value null), fall back to
     // a LIVE estimate from call volume × the billed effective rate, clearly labeled.
@@ -264,7 +306,7 @@ export async function getDashboardData(opts: {
       unit: d.unit,
       good_direction: d.good_direction,
       value,
-      previous: forced ? null : aggregate(prevRows, d.key),
+      previous,
       awaiting: forced || value === null, // null data => "Awaiting data", never a fake 0
       estimated,
     };
@@ -353,6 +395,8 @@ export async function getDashboardData(opts: {
     recoveredTotal: aggregate(cur, "recovered_count") ?? 0,
     recoveredValueEst,
     insights,
+    appraisalsScheduled,
+    appraisalsWantOptions,
     lastUpdated,
   };
 }
