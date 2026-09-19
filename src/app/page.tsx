@@ -69,8 +69,9 @@ export default async function DashboardPage({
         ))}
       </div>
 
-      {/* Row 2 — operational stat cards (drillable ones link to the actual calls) */}
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      {/* Row 2 — operational stat cards (drillable ones link to the actual calls).
+          7 cards → xl:grid-cols-7 so none is stranded alone on a second line. */}
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         {data.secondary.map((m) =>
           isDrillMetric(m.key) && !m.awaiting ? (
             <Link
