@@ -98,3 +98,25 @@ export interface RecoveredRow {
   outcome: string;
   value: number | null;
 }
+
+// Reid's trade-equity accountability funnel. One row per service customer who
+// said yes to a trade value; the later fields fill in as the salesperson works
+// the lead from the claim screen.
+export interface EquityRow {
+  id: number;
+  customer_name: string | null;
+  vehicle: string | null;
+  priority_score: number | null;
+  priority_band: string | null;
+  wants_options: boolean;
+  claimed_by: string | null;
+  outcome: string | null;
+}
+
+export interface EquityFunnel {
+  scheduled: number;
+  wantsOptions: number;
+  claimed: number;
+  presented: number;
+  sold: number;
+}

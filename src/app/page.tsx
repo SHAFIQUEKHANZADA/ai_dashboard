@@ -13,6 +13,7 @@ import { CallsBookingsTrend } from "@/components/charts/calls-bookings-trend";
 import { TransfersBreakdown } from "@/components/charts/transfers-breakdown";
 import { RecoveredTable } from "@/components/tables/recovered-table";
 import { CallbacksTable } from "@/components/tables/callbacks-table";
+import { EquityFunnelPanel } from "@/components/tables/equity-funnel";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +100,26 @@ export default async function DashboardPage({
         </Panel>
         <Panel title="Daily Calls & Bookings Trend" subtitle="Last 14 days" icon={<TrendingUp className="h-4 w-4" />}>
           <CallsBookingsTrend data={data.trend} />
+        </Panel>
+      </div>
+
+      {/* Trade equity — Reid's accountability funnel. Full width because the
+          stage that matters (wanted options -> claimed) is a comparison, and
+          squeezing it into a third of a row hides the gap it exists to show. */}
+      <div className="mt-4">
+        <Panel
+          title="Trade Equity — Service Drive"
+          subtitle="Customers who said yes to a trade value while in for service"
+          icon={<Target className="h-4 w-4" />}
+          headerRight={
+            data.appraisalsScheduled ? (
+              <span className="whitespace-nowrap rounded-full bg-green/10 px-2.5 py-1 text-[11px] font-semibold text-green">
+                {data.appraisalsScheduled} appraisal{data.appraisalsScheduled === 1 ? "" : "s"}
+              </span>
+            ) : undefined
+          }
+        >
+          <EquityFunnelPanel funnel={data.equityFunnel} rows={data.equityRows} />
         </Panel>
       </div>
 

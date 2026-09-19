@@ -9,6 +9,8 @@ import type {
   StoreBookings,
   CallbackRow,
   RecoveredRow,
+  EquityRow,
+  EquityFunnel,
 } from "@/lib/types";
 
 // NOTE: reads use the service client for now so the dashboard renders during
@@ -53,6 +55,8 @@ export interface DashboardData {
   insights: CallInsights;
   appraisalsScheduled: number;   // said yes to a trade value today
   appraisalsWantOptions: number; // of those, how many agreed to be approached
+  equityFunnel: EquityFunnel;
+  equityRows: EquityRow[];
   lastUpdated: string | null;
 }
 
@@ -245,8 +249,11 @@ export async function getDashboardData(opts: {
     // Appraisals Scheduled — read straight from the equity table, not the daily
     // rollup. Reid watches this while the customer is still in the lounge, so a
     // number that waits on the 15-minute ingest would be no use to him.
-    sb.from("esther_equity_appraisals").select("id,wants_options")
-      .eq("local_date", date).in("store_id", scopeIds),
+    sb.from("esther_equity_appraisals")
+      .select("id,customer_name,vehicle,priority_score,priority_band," +
+              "wants_options,claimed_by,outcome")
+      .eq("local_date", date).in("store_id", scopeIds)
+      .order("priority_score", { ascending: false, nullsFirst: false }),
     sb.from("esther_equity_appraisals").select("id")
       .eq("local_date", prevDate).in("store_id", scopeIds),
   ]);
@@ -264,10 +271,22 @@ export async function getDashboardData(opts: {
     : null;
 
   // Appraisals Scheduled — how many service customers said yes to a trade value.
-  const appraisals = (apprRes.data ?? []) as { id: number; wants_options: boolean }[];
+  const appraisals = (apprRes.data ?? []) as unknown as EquityRow[];
   const appraisalsScheduled = appraisals.length;
   const appraisalsWantOptions = appraisals.filter((a) => a.wants_options).length;
   const appraisalsPrev = ((apprPrevRes.data ?? []) as { id: number }[]).length;
+
+  // The accountability funnel. "claimed" counts anyone a salesperson took,
+  // including the ones who then presented or sold -- a funnel that let later
+  // stages fall out of earlier ones would read as leads going backwards.
+  const equityFunnel: EquityFunnel = {
+    scheduled: appraisalsScheduled,
+    wantsOptions: appraisalsWantOptions,
+    claimed: appraisals.filter((a) => a.claimed_by).length,
+    presented: appraisals.filter(
+      (a) => a.outcome === "presented" || a.outcome === "sold").length,
+    sold: appraisals.filter((a) => a.outcome === "sold").length,
+  };
 
   const buildMetric = (d: MetricDefinition): MetricValue => {
     const forced = AWAITING.has(d.key);
@@ -397,6 +416,8 @@ export async function getDashboardData(opts: {
     insights,
     appraisalsScheduled,
     appraisalsWantOptions,
+    equityFunnel,
+    equityRows: appraisals,
     lastUpdated,
   };
 }
