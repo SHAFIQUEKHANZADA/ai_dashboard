@@ -63,8 +63,9 @@ export default async function DashboardPage({
         user={{ name: user.name, email: user.email, role: user.role }}
       />
 
-      {/* Row 1 — headline KPIs */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      {/* Row 1 — headline KPIs. 7 cards (overall + appointment conversion split
+          out per Reid) → xl:grid-cols-7 so none is stranded on a second line. */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-7">
         {data.headline.map((m) => (
           <KpiCard key={m.key} metric={m} />
         ))}

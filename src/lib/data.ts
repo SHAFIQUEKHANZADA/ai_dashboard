@@ -36,6 +36,72 @@ const SUM_KEYS = new Set([
   "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count", "ai_spend",
 ]);
 
+// Seconds since midnight for a timestamp, in Chicago time.
+function ctSecondsOfDay(iso: string): number {
+  const p = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", hour12: false,
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => Number(p.find((x) => x.type === t)?.value ?? 0);
+  let h = get("hour");
+  if (h === 24) h = 0; // Intl can emit 24 for midnight
+  return h * 3600 + get("minute") * 60 + get("second");
+}
+
+function ctToday(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+}
+
+// Build partial "previous day" rows (one per store) from raw calls, cut off at the
+// same clock time as now — so a mid-day "today" compares against yesterday up to
+// the same hour, not yesterday's full-day total (Reid's same-time comparison).
+// Only the count/rate columns the dashboard's aggregate() reads are filled;
+// billing (ai_spend) can't be time-sliced and is left absent.
+type PartialCall = {
+  started_at: string; store_id: string; ghl_contact_id: string | null;
+  ghl_message_id: string | null; outcome: string | null; department: string | null;
+  transferred: boolean | null; transfer_succeeded: boolean | null; callback_needed: boolean | null;
+};
+function sameTimePreviousRows(
+  calls: PartialCall[], scopeIds: string[], prevDate: string,
+  cutoffSeconds: number, perCallIds: Set<string>,
+): DM[] {
+  const byStore = new Map<string, PartialCall[]>();
+  for (const c of calls) {
+    if (ctSecondsOfDay(c.started_at) > cutoffSeconds) continue; // after "now" yesterday
+    (byStore.get(c.store_id) ?? byStore.set(c.store_id, []).get(c.store_id)!).push(c);
+  }
+  const rows: DM[] = [];
+  for (const sid of scopeIds) {
+    const cs = byStore.get(sid) ?? [];
+    const perCall = perCallIds.has(sid);
+    const key = (c: PartialCall) => (perCall ? c.ghl_message_id : c.ghl_contact_id) ?? c.ghl_message_id ?? "";
+    const distinct = (pred: (c: PartialCall) => boolean) =>
+      new Set(cs.filter(pred).map(key)).size;
+    const total = cs.length;
+    const eligible = distinct((c) => (c.department === "service" || c.department === "sales") && c.outcome !== "no_transcript");
+    rows.push({
+      store_id: sid, local_date: prevDate,
+      total_calls: total,
+      appointments_booked: distinct((c) => c.outcome === "booked"),
+      eligible_calls: eligible,
+      booking_attempts: distinct((c) => c.outcome === "booked" || c.outcome === "callback_needed" || c.outcome === "dropped"),
+      contained_calls: distinct((c) => (c.department === "service" || c.department === "sales") && c.outcome !== "no_transcript"
+        && (c.outcome === "booked" || c.outcome === "info_only" || (!!c.transferred && c.transfer_succeeded !== false))),
+      transfers: cs.filter((c) => c.transferred && c.department !== "sales").length,
+      failed_transfers: cs.filter((c) => c.transferred && c.transfer_succeeded === false && c.department !== "sales").length,
+      dropped_calls: cs.filter((c) => c.outcome === "dropped").length,
+      callbacks_needed: distinct((c) => !!c.callback_needed),
+      recovered_count: 0,
+      ai_spend: null, cost_per_booking: null, booking_pct: null,
+      secret_shopper_score: null, intent_breakdown: {}, updated_at: "",
+    } as unknown as DM);
+  }
+  return rows;
+}
+
 export interface DashboardData {
   date: string;
   scope: string; // "group" | store id
@@ -184,6 +250,20 @@ function aggregate(rows: DM[], key: string): number | null {
     }
     return elig > 0 ? weighted / elig : null;
   }
+  if (key === "conversion_overall") {
+    // Overall conversion = booked ÷ ALL calls (recomputed from totals, never an
+    // avg of %s). Reid wants this shown next to the appointment-specific rate.
+    const booked = rows.reduce((s, r) => s + (num(r, "appointments_booked") ?? 0), 0);
+    const total = rows.reduce((s, r) => s + (num(r, "total_calls") ?? 0), 0);
+    return total > 0 ? (booked / total) * 100 : null;
+  }
+  if (key === "conversion_appointment") {
+    // Appointment-specific = booked ÷ booking attempts (calls that reached a
+    // booking decision). This is the ~80% Reid wants to see.
+    const booked = rows.reduce((s, r) => s + (num(r, "appointments_booked") ?? 0), 0);
+    const att = rows.reduce((s, r) => s + (num(r, "booking_attempts") ?? 0), 0);
+    return att > 0 ? (booked / att) * 100 : null;
+  }
   if (key === "containment_rate") {
     // weighted across stores: total contained ÷ total eligible (never an avg of %s)
     const contained = rows.reduce((s, r) => s + (num(r, "contained_calls") ?? 0), 0);
@@ -226,6 +306,16 @@ export async function getDashboardData(opts: {
   start14.setUTCDate(start14.getUTCDate() - 13);
   const start14Date = start14.toISOString().slice(0, 10);
 
+  // Kick these off NOW so they run concurrently with the main batch instead of
+  // as extra sequential round-trips afterwards (dashboard load speed — Reid).
+  const insightsPromise = getCallInsights(scopeIds, date);
+  const isToday = date === ctToday();
+  const sameTimePromise = isToday
+    ? sb.from("esther_calls")
+        .select("started_at,store_id,ghl_contact_id,ghl_message_id,outcome,department,transferred,transfer_succeeded,callback_needed")
+        .eq("local_date", prevDate).in("store_id", scopeIds).not("tags", "cs", "{qa-line}")
+    : null;
+
   const [defsRes, curRes, prevRes, trendRes, cbRes, recRes, recValRes, qaRes,
          apprRes, apprPrevRes] = await Promise.all([
     sb.from("esther_metric_definitions").select("*").eq("enabled", true).order("sort_order"),
@@ -262,7 +352,21 @@ export async function getDashboardData(opts: {
 
   const defs = (defsRes.data ?? []) as MetricDefinition[];
   const cur = (curRes.data ?? []) as DM[];
-  const prevRows = (prevRes.data ?? []) as DM[];
+  let prevRows = (prevRes.data ?? []) as DM[];
+
+  // Same-time comparison (Reid's ask): when viewing TODAY (a partial day),
+  // compare against yesterday up to the SAME clock time, not yesterday's full
+  // total — otherwise every card shows a huge false "drop" all day. For past
+  // dates (full days) the rolled-up previous day is already apples-to-apples.
+  if (sameTimePromise) {
+    const cutoff = ctSecondsOfDay(new Date().toISOString());
+    const { data: prevCalls } = await sameTimePromise;
+    // Kia forwards all callers through one number → dedup by call, like the rollup.
+    const perCallIds = new Set(
+      [...storeNames.entries()].filter(([, n]) => /kia/i.test(n)).map(([id]) => id));
+    prevRows = sameTimePreviousRows(
+      (prevCalls ?? []) as unknown as PartialCall[], scopeIds, prevDate, cutoff, perCallIds);
+  }
 
   // Secret Shopper Score = average of the day's graded QA shop calls (0–100), or
   // null when none graded yet (card shows "Awaiting data").
@@ -397,7 +501,7 @@ export async function getDashboardData(opts: {
   const lastUpdated =
     cur.map((r) => r.updated_at as string).filter(Boolean).sort().pop() ?? null;
 
-  const insights = await getCallInsights(scopeIds, date);
+  const insights = await insightsPromise; // started before the main batch (concurrent)
 
   return {
     date,
