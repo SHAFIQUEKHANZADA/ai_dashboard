@@ -82,7 +82,7 @@ export async function getCallInsights(scopeIds: string[], date: string): Promise
   const sb = createServiceClient();
   const { data: calls } = await sb
     .from("esther_calls")
-    .select("ghl_message_id,intent,transferred")
+    .select("ghl_message_id,intent,transferred,department")
     .eq("local_date", date)
     .in("store_id", scopeIds)
     .not("tags", "cs", "{qa-line}"); // exclude QA/secret-shopper calls, like the rollup
@@ -106,7 +106,9 @@ export async function getCallInsights(scopeIds: string[], date: string): Promise
     if (c) classified++;
     const label = c?.intent_detail || (r.intent ? humanizeIntent(r.intent) : "Unknown");
     intentCounts[label] = (intentCounts[label] ?? 0) + 1;
-    if (r.transferred) {
+    // Service transfers only (Reid's ask) — exclude sales hand-offs, matching the
+    // rollup's `department is distinct from 'sales'`. Unclassified counts as service.
+    if (r.transferred && r.department !== "sales") {
       const reason = c?.transfer_reason || "unknown";
       reasonCounts[reason] = (reasonCounts[reason] ?? 0) + 1;
     }
