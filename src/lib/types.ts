@@ -113,6 +113,27 @@ export interface EquityRow {
   outcome: string | null;
 }
 
+// "Needs Attention" — the follow-ups Reid wants surfaced at the top: callbacks
+// (with reason, wait time, store, owner), calls whose sentiment fell, and callers
+// who asked for a human.
+export interface AttentionItem {
+  time: string;           // ISO started_at
+  waitMins: number;       // minutes since the call happened
+  store: string;          // store name
+  reason: string;         // classified reason / intent
+  owner: string | null;   // assigned owner (null until GHL contact-owner is wired)
+  detail?: string;        // extra context (e.g. sentiment 20 → -30)
+}
+
+export interface NeedsAttention {
+  callbacks: AttentionItem[];
+  deteriorated: AttentionItem[];
+  humanRequests: AttentionItem[];
+  callbacksTotal: number;
+  deterioratedTotal: number;
+  humanRequestsTotal: number;
+}
+
 export interface EquityFunnel {
   scheduled: number;
   wantsOptions: number;

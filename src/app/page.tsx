@@ -14,6 +14,7 @@ import { TransfersBreakdown } from "@/components/charts/transfers-breakdown";
 import { RecoveredTable } from "@/components/tables/recovered-table";
 import { CallbacksTable } from "@/components/tables/callbacks-table";
 import { EquityFunnelPanel } from "@/components/tables/equity-funnel";
+import { NeedsAttentionSection } from "@/components/needs-attention";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,10 @@ export default async function DashboardPage({
         canSeeGroup={user.canSeeGroup}
         user={{ name: user.name, email: user.email, role: user.role }}
       />
+
+      {/* Needs Attention — follow-ups waiting on a person, surfaced at the top
+          (Reid). Renders nothing on a day with no callbacks/sentiment/human flags. */}
+      <NeedsAttentionSection data={data.needsAttention} />
 
       {/* Row 1 — headline KPIs. 7 cards (overall + appointment conversion split
           out per Reid) → xl:grid-cols-7 so none is stranded on a second line. */}
@@ -174,7 +179,8 @@ export default async function DashboardPage({
         </Panel>
       </div>
 
-      {/* Row 5 — sentiment & human preference (AI-classified) */}
+      {/* Row 5 — customer sentiment (avg). Deteriorated sentiment & human requests
+          moved up to the "Needs Attention" section per Reid. */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Panel
           title="Customer Sentiment"
@@ -192,37 +198,6 @@ export default async function DashboardPage({
             </div>
           )}
         </Panel>
-
-        <Panel
-          title="Sentiment Deteriorated"
-          subtitle="Calls that ended worse than they started"
-          icon={<PhoneMissed className="h-4 w-4" />}
-        >
-          <div className="flex items-baseline gap-2">
-            <span className={`text-4xl font-extrabold ${data.insights.sentimentDeteriorated ? "text-red" : "text-ink"}`}>
-              {data.insights.sentimentDeteriorated}
-            </span>
-            <span className="text-xs text-muted">of {data.insights.sentimentSampled} analyzed</span>
-          </div>
-        </Panel>
-
-        <Panel
-          title="Human Preference Rate"
-          subtitle="Customers who explicitly asked for a person"
-          icon={<Target className="h-4 w-4" />}
-        >
-          {data.insights.callsConsidered === 0 ? (
-            <p className="text-sm text-muted">No calls</p>
-          ) : (
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-ink">
-                {Math.round((100 * data.insights.humanRequested) / data.insights.callsConsidered)}%
-              </span>
-              <span className="text-xs text-muted">{data.insights.humanRequested} of {data.insights.callsConsidered} calls</span>
-            </div>
-          )}
-        </Panel>
-        
       </div>
     </>
   );

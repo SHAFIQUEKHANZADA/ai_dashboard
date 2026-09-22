@@ -11,6 +11,8 @@ import type {
   RecoveredRow,
   EquityRow,
   EquityFunnel,
+  NeedsAttention,
+  AttentionItem,
 } from "@/lib/types";
 
 // NOTE: reads use the service client for now so the dashboard renders during
@@ -119,6 +121,7 @@ export interface DashboardData {
   recoveredTotal: number;
   recoveredValueEst: number; // rough estimated $ recovered (recoveredTotal × per-RO estimate)
   insights: CallInsights;
+  needsAttention: NeedsAttention;
   appraisalsScheduled: number;   // said yes to a trade value today
   appraisalsWantOptions: number; // of those, how many agreed to be approached
   equityFunnel: EquityFunnel;
@@ -142,6 +145,71 @@ export interface CallInsights {
 
 function titleCase(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// "Needs Attention" — callbacks (with reason, wait time, store, owner), calls
+// whose sentiment fell, and callers who asked for a human. Surfaced at the top so
+// nothing waiting on a human slips through (Reid). Owner stays null until GHL's
+// contact-owner is wired in.
+export async function getNeedsAttention(
+  scopeIds: string[], date: string, storeNames: Map<string, string>,
+): Promise<NeedsAttention> {
+  const sb = createServiceClient();
+  const { data: calls } = await sb
+    .from("esther_calls")
+    .select("ghl_message_id,started_at,store_id,intent,callback_needed")
+    .eq("local_date", date).in("store_id", scopeIds)
+    .not("tags", "cs", "{qa-line}");
+  const rows = calls ?? [];
+  const ids = rows.map((r) => r.ghl_message_id).filter(Boolean) as string[];
+
+  const cls = new Map<string, { intent_detail: string | null; human_requested: boolean | null; sentiment_open: number | null; sentiment_close: number | null }>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await sb
+      .from("esther_call_classifications")
+      .select("ghl_message_id,intent_detail,human_requested,sentiment_open,sentiment_close")
+      .in("ghl_message_id", ids.slice(i, i + 200));
+    for (const c of data ?? []) cls.set(c.ghl_message_id, c);
+  }
+
+  const now = Date.now();
+  const waitMins = (iso: string) => Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
+  const item = (r: { started_at: string; store_id: string; intent: string | null; ghl_message_id: string }, detail?: string): AttentionItem => {
+    const c = cls.get(r.ghl_message_id);
+    return {
+      time: r.started_at,
+      waitMins: waitMins(r.started_at),
+      store: storeNames.get(r.store_id) ?? "—",
+      reason: c?.intent_detail || (r.intent ? humanizeIntent(r.intent) : "—"),
+      owner: null, // GHL contact-owner not ingested yet
+      detail,
+    };
+  };
+
+  const callbacks: AttentionItem[] = [];
+  const deteriorated: AttentionItem[] = [];
+  const humanRequests: AttentionItem[] = [];
+  for (const r of rows) {
+    const rr = r as { started_at: string; store_id: string; intent: string | null; ghl_message_id: string; callback_needed: boolean };
+    if (!rr.ghl_message_id) continue;
+    const c = cls.get(rr.ghl_message_id);
+    if (rr.callback_needed) callbacks.push(item(rr));
+    if (c && c.sentiment_open != null && c.sentiment_close != null && c.sentiment_close < c.sentiment_open) {
+      deteriorated.push(item(rr, `${c.sentiment_open > 0 ? "+" : ""}${c.sentiment_open} → ${c.sentiment_close > 0 ? "+" : ""}${c.sentiment_close}`));
+    }
+    if (c?.human_requested) humanRequests.push(item(rr));
+  }
+  // oldest-waiting first (most urgent), capped for display
+  const byWait = (a: AttentionItem, b: AttentionItem) => b.waitMins - a.waitMins;
+  callbacks.sort(byWait); deteriorated.sort(byWait); humanRequests.sort(byWait);
+  return {
+    callbacks: callbacks.slice(0, 12),
+    deteriorated: deteriorated.slice(0, 8),
+    humanRequests: humanRequests.slice(0, 8),
+    callbacksTotal: callbacks.length,
+    deterioratedTotal: deteriorated.length,
+    humanRequestsTotal: humanRequests.length,
+  };
 }
 
 export async function getCallInsights(scopeIds: string[], date: string): Promise<CallInsights> {
@@ -309,6 +377,7 @@ export async function getDashboardData(opts: {
   // Kick these off NOW so they run concurrently with the main batch instead of
   // as extra sequential round-trips afterwards (dashboard load speed — Reid).
   const insightsPromise = getCallInsights(scopeIds, date);
+  const needsAttentionPromise = getNeedsAttention(scopeIds, date, storeNames);
   const isToday = date === ctToday();
   const sameTimePromise = isToday
     ? sb.from("esther_calls")
@@ -502,12 +571,14 @@ export async function getDashboardData(opts: {
     cur.map((r) => r.updated_at as string).filter(Boolean).sort().pop() ?? null;
 
   const insights = await insightsPromise; // started before the main batch (concurrent)
+  const needsAttention = await needsAttentionPromise;
 
   return {
     date,
     scope: storeId ?? "group",
     headline,
     secondary,
+    needsAttention,
     intent,
     intentTotal,
     apptsByStore,
