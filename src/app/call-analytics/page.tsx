@@ -33,7 +33,7 @@ export default async function CallAnalyticsPage({ searchParams }: { searchParams
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
-        <Tile label="Calls (callers)" value={data.total} tone="blue" />
+        <Tile label="Total Calls" value={data.total} tone="blue" />
         <Tile label="Booked" value={data.byOutcome["booked"] ?? 0} tone="green" />
         <Tile label="Transferred" value={data.transferred} />
         <Tile label="Dropped" value={data.byOutcome["dropped"] ?? 0} tone="red" />
@@ -41,7 +41,7 @@ export default async function CallAnalyticsPage({ searchParams }: { searchParams
         <Tile label="Info only" value={data.byOutcome["info_only"] ?? 0} />
       </div>
 
-      <Panel title="Recent calls" subtitle="Newest first" className="mt-4">
+      <Panel title="Recent calls" subtitle="Newest first · latest 300 shown (tiles above cover the full 14 days)" className="mt-4">
         {data.rows.length === 0 ? (
           <EmptyState label="No calls in range" />
         ) : (

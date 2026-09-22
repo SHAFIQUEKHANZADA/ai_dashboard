@@ -43,14 +43,26 @@ export async function getCalls(scopeIds: string[], names: Map<string, string>, f
   const sb = createServiceClient();
   const stores = await getStores();
   const locs = new Map(stores.map((s) => [s.id, s.ghl_location_id]));
-  const { data } = await sb
-    .from("esther_calls")
-    .select("id,started_at,store_id,department,intent,outcome,transferred,callback_needed,tags,ghl_contact_id")
-    .in("store_id", scopeIds)
-    .gte("local_date", from)
-    .lte("local_date", to)
-    .order("started_at", { ascending: false })
-    .limit(300);
+
+  // The TILES must reflect the true window totals — summed from the same daily
+  // rollup the dashboard uses, so Call Analytics agrees with the dashboard. (This
+  // used to compute every stat from just the latest 300 rows, so "Calls" showed
+  // 300 no matter the real 14-day count.) The RECENT-CALLS table is a preview, so
+  // it stays capped at the newest 300.
+  const [{ data: dm }, { data }, infoRes] = await Promise.all([
+    sb.from("esther_daily_metrics")
+      .select("total_calls,appointments_booked,transfers,dropped_calls,callbacks_needed")
+      .in("store_id", scopeIds).gte("local_date", from).lte("local_date", to),
+    sb.from("esther_calls")
+      .select("id,started_at,store_id,department,intent,outcome,transferred,callback_needed,tags,ghl_contact_id")
+      .in("store_id", scopeIds).gte("local_date", from).lte("local_date", to)
+      .order("started_at", { ascending: false }).limit(300),
+    sb.from("esther_calls")
+      .select("id", { count: "exact", head: true })
+      .in("store_id", scopeIds).gte("local_date", from).lte("local_date", to)
+      .eq("outcome", "info_only").not("tags", "cs", "{qa-line}"),
+  ]);
+
   const rows: CallRow[] = (data ?? []).map((r) => ({
     id: r.id,
     started_at: r.started_at,
@@ -63,21 +75,22 @@ export async function getCalls(scopeIds: string[], names: Map<string, string>, f
     tags: r.tags ?? [],
     ghl_url: ghlContactUrl(locs.get(r.store_id) ?? null, r.ghl_contact_id),
   }));
-  const by = (key: keyof CallRow) => {
-    const m: Record<string, number> = {};
-    for (const r of rows) {
-      const v = (r[key] as string) || "unknown";
-      m[v] = (m[v] ?? 0) + 1;
-    }
-    return m;
-  };
+
+  const sum = (k: string) => (dm ?? []).reduce((s, r) => s + (((r as Record<string, number>)[k]) ?? 0), 0);
+  const byDept: Record<string, number> = {};
+  for (const r of rows) { const v = r.department || "unknown"; byDept[v] = (byDept[v] ?? 0) + 1; }
+
   return {
     rows,
-    total: rows.length,
-    byOutcome: by("outcome"),
-    byDept: by("department"),
-    transferred: rows.filter((r) => r.transferred).length,
-    callbacks: rows.filter((r) => r.callback_needed).length,
+    total: sum("total_calls"),
+    byOutcome: {
+      booked: sum("appointments_booked"),
+      dropped: sum("dropped_calls"),
+      info_only: infoRes.count ?? 0,
+    } as Record<string, number>,
+    byDept,
+    transferred: sum("transfers"),
+    callbacks: sum("callbacks_needed"),
   };
 }
 
