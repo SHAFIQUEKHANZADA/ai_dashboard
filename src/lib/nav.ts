@@ -1,6 +1,8 @@
 import {
   LayoutDashboard,
   PhoneCall,
+  ShieldCheck,
+  BadgeDollarSign,
   CalendarDays,
   MessagesSquare,
   FileBarChart,
@@ -19,6 +21,8 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Call Analytics", href: "/call-analytics", icon: PhoneCall },
+  { label: "Call Quality", href: "/call-quality", icon: ShieldCheck },
+  { label: "Appraisals", href: "/appraisals", icon: BadgeDollarSign },
   { label: "Appointments", href: "/appointments", icon: CalendarDays },
   { label: "Conversations", href: "/conversations", icon: MessagesSquare },
   // Opportunities tab hidden per Reid's request (2026-09-18). The /opportunities
