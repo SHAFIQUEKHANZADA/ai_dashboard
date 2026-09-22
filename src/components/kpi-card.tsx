@@ -29,7 +29,7 @@ export function KpiCard({ metric }: { metric: MetricValue }) {
   const v = VISUAL[metric.key] ?? { icon: BarChart3, tile: "bg-brand" };
   const Icon = v.icon;
   return (
-    <div className="min-w-0 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
+    <div className="flex h-full min-w-0 flex-col rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
       <div className="flex items-start justify-between">
         <span className={`flex h-12 w-12 items-center justify-center rounded-xl text-white ${v.tile}`}>
           <Icon className="h-6 w-6" strokeWidth={2.2} />
@@ -51,7 +51,7 @@ export function KpiCard({ metric }: { metric: MetricValue }) {
       {DEFINITION[metric.key] && (
         <div className="mt-1.5 text-[10px] leading-tight text-muted/80">{DEFINITION[metric.key]}</div>
       )}
-      <div className="mt-3">
+      <div className="mt-auto pt-3">
         {metric.awaiting ? (
           <span className="text-xs text-muted">Source coming soon</span>
         ) : metric.estimated ? (

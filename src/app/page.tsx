@@ -76,7 +76,7 @@ export default async function DashboardPage({
             <Link
               key={m.key}
               href={drillHref(m.key)}
-              className="block rounded-2xl transition hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+              className="block h-full rounded-2xl transition hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
             >
               <KpiCard metric={m} />
             </Link>
@@ -94,7 +94,7 @@ export default async function DashboardPage({
             <Link
               key={m.key}
               href={drillHref(m.key)}
-              className="block rounded-xl transition hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+              className="block h-full rounded-xl transition hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
             >
               <StatCard metric={m} />
             </Link>

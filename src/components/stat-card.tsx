@@ -18,7 +18,7 @@ export function StatCard({ metric }: { metric: MetricValue }) {
   const v = VISUAL[metric.key] ?? { icon: Target, tint: "bg-brand/10", fg: "text-brand" };
   const Icon = v.icon;
   return (
-    <div className="min-w-0 rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
+    <div className="flex h-full min-w-0 flex-col rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
       <div className="flex items-center gap-3">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${v.tint} ${v.fg}`}>
           <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
@@ -28,7 +28,7 @@ export function StatCard({ metric }: { metric: MetricValue }) {
       <div className="mt-3 truncate text-[26px] font-extrabold leading-none tracking-tight text-ink">
         {metric.awaiting ? <span className="text-[15px] text-muted">Awaiting data</span> : formatMetric(metric.value, metric.unit)}
       </div>
-      <div className="mt-2">
+      <div className="mt-auto pt-2">
         {metric.awaiting ? (
           <span className="text-[11px] text-muted">Source coming soon</span>
         ) : (
