@@ -18,14 +18,14 @@ export function StatCard({ metric }: { metric: MetricValue }) {
   const v = VISUAL[metric.key] ?? { icon: Target, tint: "bg-brand/10", fg: "text-brand" };
   const Icon = v.icon;
   return (
-    <div className="rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
+    <div className="min-w-0 rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
       <div className="flex items-center gap-3">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${v.tint} ${v.fg}`}>
           <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
         </span>
-        <span className="text-[12.5px] font-medium leading-tight text-muted">{metric.label}</span>
+        <span className="min-w-0 text-[12.5px] font-medium leading-tight text-muted">{metric.label}</span>
       </div>
-      <div className="mt-3 text-[26px] font-extrabold leading-none tracking-tight text-ink">
+      <div className="mt-3 truncate text-[26px] font-extrabold leading-none tracking-tight text-ink">
         {metric.awaiting ? <span className="text-[15px] text-muted">Awaiting data</span> : formatMetric(metric.value, metric.unit)}
       </div>
       <div className="mt-2">
