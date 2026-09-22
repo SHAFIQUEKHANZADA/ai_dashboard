@@ -1,4 +1,4 @@
-import { Phone, CalendarCheck, Percent, DollarSign, BarChart3, type LucideIcon } from "lucide-react";
+import { Phone, CalendarCheck, Percent, DollarSign, BarChart3, Gauge, TrendingUp, type LucideIcon } from "lucide-react";
 import { formatMetric } from "@/lib/format";
 import { DeltaBadge } from "@/components/delta-badge";
 import type { MetricValue } from "@/lib/types";
@@ -7,6 +7,9 @@ const VISUAL: Record<string, { icon: LucideIcon; tile: string }> = {
   total_calls: { icon: Phone, tile: "bg-blue" },
   appointments_booked: { icon: CalendarCheck, tile: "bg-green" },
   booking_pct: { icon: Percent, tile: "bg-purple" },
+  conversion_overall: { icon: Percent, tile: "bg-purple" },
+  conversion_appointment: { icon: TrendingUp, tile: "bg-purple" },
+  containment_rate: { icon: Gauge, tile: "bg-blue" },
   cost_per_booking: { icon: DollarSign, tile: "bg-orange" },
   ai_spend: { icon: BarChart3, tile: "bg-teal" },
 };
@@ -21,7 +24,9 @@ export function KpiCard({ metric }: { metric: MetricValue }) {
           <Icon className="h-6 w-6" strokeWidth={2.2} />
         </span>
       </div>
-      <div className="mt-4 text-[13px] font-medium text-muted">{metric.label}</div>
+      {/* Reserve two lines so a label that wraps (e.g. "Appointment Conversion")
+          keeps its value on the same baseline as the one-line cards beside it. */}
+      <div className="mt-4 flex min-h-[2.5em] items-start text-[13px] font-medium leading-tight text-muted">{metric.label}</div>
       <div className="mt-1 text-[34px] font-extrabold leading-none tracking-tight text-ink">
         {metric.awaiting ? (
           <span className="text-[20px] text-muted">Awaiting data</span>
