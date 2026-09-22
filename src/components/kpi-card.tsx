@@ -3,6 +3,17 @@ import { formatMetric } from "@/lib/format";
 import { DeltaBadge } from "@/components/delta-badge";
 import type { MetricValue } from "@/lib/types";
 
+// One-line definitions under a KPI so the denominator is never in question
+// (Reid: "add a small definition so nobody questions the number").
+const DEFINITION: Record<string, string> = {
+  conversion_overall: "Booked ÷ all calls",
+  conversion_appointment: "Booked ÷ calls that tried to book",
+  containment_rate: "Handled by Esther — booked, info, or correctly transferred ÷ eligible calls",
+  cost_per_booking: "AI spend ÷ appointments booked",
+  appointments_booked: "Distinct calls that booked",
+  booking_pct: "Booked ÷ eligible calls",
+};
+
 const VISUAL: Record<string, { icon: LucideIcon; tile: string }> = {
   total_calls: { icon: Phone, tile: "bg-blue" },
   appointments_booked: { icon: CalendarCheck, tile: "bg-green" },
@@ -37,6 +48,9 @@ export function KpiCard({ metric }: { metric: MetricValue }) {
           </>
         )}
       </div>
+      {DEFINITION[metric.key] && (
+        <div className="mt-1.5 text-[10px] leading-tight text-muted/80">{DEFINITION[metric.key]}</div>
+      )}
       <div className="mt-3">
         {metric.awaiting ? (
           <span className="text-xs text-muted">Source coming soon</span>

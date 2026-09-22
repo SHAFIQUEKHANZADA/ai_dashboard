@@ -82,10 +82,11 @@ export async function getCalls(scopeIds: string[], names: Map<string, string>, f
 }
 
 // ── Metric drill-down: the actual calls behind a number, linkable into GHL ──
-export const DRILLABLE = ["transfers", "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count"] as const;
+export const DRILLABLE = ["appointments_booked", "transfers", "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count"] as const;
 export type DrillMetric = (typeof DRILLABLE)[number];
 
 export const METRIC_LABEL: Record<DrillMetric, string> = {
+  appointments_booked: "Appointments Booked",
   transfers: "Transfers",
   failed_transfers: "Failed Transfers",
   dropped_calls: "Dropped Calls",
@@ -129,7 +130,8 @@ export async function getMetricCalls(metric: DrillMetric, scopeIds: string[], da
     .order("started_at", { ascending: false })
     .limit(500);
 
-  if (metric === "transfers") q = q.eq("transferred", true);
+  if (metric === "appointments_booked") q = q.eq("outcome", "booked");
+  else if (metric === "transfers") q = q.eq("transferred", true);
   else if (metric === "failed_transfers") q = q.eq("transferred", true).eq("transfer_succeeded", false);
   else if (metric === "dropped_calls") q = q.eq("outcome", "dropped");
   else if (metric === "callbacks_needed") q = q.eq("callback_needed", true);

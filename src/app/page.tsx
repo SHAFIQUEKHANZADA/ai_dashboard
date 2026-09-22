@@ -66,9 +66,19 @@ export default async function DashboardPage({
       {/* Row 1 — headline KPIs. 7 cards (overall + appointment conversion split
           out per Reid) → xl:grid-cols-7 so none is stranded on a second line. */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-7">
-        {data.headline.map((m) => (
-          <KpiCard key={m.key} metric={m} />
-        ))}
+        {data.headline.map((m) =>
+          isDrillMetric(m.key) && !m.awaiting ? (
+            <Link
+              key={m.key}
+              href={drillHref(m.key)}
+              className="block rounded-2xl transition hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+            >
+              <KpiCard metric={m} />
+            </Link>
+          ) : (
+            <KpiCard key={m.key} metric={m} />
+          )
+        )}
       </div>
 
       {/* Row 2 — operational stat cards (drillable ones link to the actual calls).
