@@ -15,6 +15,7 @@ import { RecoveredTable } from "@/components/tables/recovered-table";
 import { CallbacksTable } from "@/components/tables/callbacks-table";
 import { EquityFunnelPanel } from "@/components/tables/equity-funnel";
 import { NeedsAttentionSection } from "@/components/needs-attention";
+import { Glossary } from "@/components/glossary";
 
 export const dynamic = "force-dynamic";
 
@@ -198,6 +199,12 @@ export default async function DashboardPage({
             </div>
           )}
         </Panel>
+      </div>
+
+      {/* Glossary — definitions + equations for every metric on the dashboard.
+          Same source as the hover tooltips on each card (Reid). */}
+      <div className="mt-4">
+        <Glossary />
       </div>
     </>
   );

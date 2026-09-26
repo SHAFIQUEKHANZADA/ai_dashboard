@@ -3,6 +3,8 @@ import {
 } from "lucide-react";
 import { formatMetric } from "@/lib/format";
 import { DeltaBadge } from "@/components/delta-badge";
+import { InfoTip } from "@/components/info-tip";
+import { metricTip } from "@/lib/metric-defs";
 import type { MetricValue } from "@/lib/types";
 
 const VISUAL: Record<string, { icon: LucideIcon; tint: string; fg: string }> = {
@@ -17,13 +19,15 @@ const VISUAL: Record<string, { icon: LucideIcon; tint: string; fg: string }> = {
 export function StatCard({ metric }: { metric: MetricValue }) {
   const v = VISUAL[metric.key] ?? { icon: Target, tint: "bg-brand/10", fg: "text-brand" };
   const Icon = v.icon;
+  const tip = metricTip(metric.key);
   return (
     <div className="flex h-full min-w-0 flex-col rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${v.tint} ${v.fg}`}>
           <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
         </span>
         <span className="min-w-0 text-[12.5px] font-medium leading-tight text-muted">{metric.label}</span>
+        {tip && <InfoTip text={tip} className="shrink-0" />}
       </div>
       <div className="mt-3 truncate text-[26px] font-extrabold leading-none tracking-tight text-ink">
         {metric.awaiting ? <span className="text-[15px] text-muted">Awaiting data</span> : formatMetric(metric.value, metric.unit)}

@@ -1,18 +1,9 @@
 import { Phone, CalendarCheck, Percent, DollarSign, BarChart3, Gauge, TrendingUp, type LucideIcon } from "lucide-react";
 import { formatMetric } from "@/lib/format";
 import { DeltaBadge } from "@/components/delta-badge";
+import { InfoTip } from "@/components/info-tip";
+import { METRIC_DEFS, metricTip } from "@/lib/metric-defs";
 import type { MetricValue } from "@/lib/types";
-
-// One-line definitions under a KPI so the denominator is never in question
-// (Reid: "add a small definition so nobody questions the number").
-const DEFINITION: Record<string, string> = {
-  conversion_overall: "Booked ÷ all calls",
-  conversion_appointment: "Booked ÷ calls that tried to book",
-  containment_rate: "Handled by Esther — booked, info, or correctly transferred ÷ eligible calls",
-  cost_per_booking: "AI spend ÷ appointments booked",
-  appointments_booked: "Distinct calls that booked",
-  booking_pct: "Booked ÷ eligible calls",
-};
 
 const VISUAL: Record<string, { icon: LucideIcon; tile: string }> = {
   total_calls: { icon: Phone, tile: "bg-blue" },
@@ -28,6 +19,8 @@ const VISUAL: Record<string, { icon: LucideIcon; tile: string }> = {
 export function KpiCard({ metric }: { metric: MetricValue }) {
   const v = VISUAL[metric.key] ?? { icon: BarChart3, tile: "bg-brand" };
   const Icon = v.icon;
+  const def = METRIC_DEFS[metric.key];
+  const tip = metricTip(metric.key);
   return (
     <div className="flex h-full min-w-0 flex-col rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow)]">
       <div className="flex items-start justify-between">
@@ -37,7 +30,10 @@ export function KpiCard({ metric }: { metric: MetricValue }) {
       </div>
       {/* Reserve two lines so a label that wraps (e.g. "Appointment Conversion")
           keeps its value on the same baseline as the one-line cards beside it. */}
-      <div className="mt-4 flex min-h-[2.5em] items-start text-[13px] font-medium leading-tight text-muted">{metric.label}</div>
+      <div className="mt-4 flex min-h-[2.5em] items-start gap-1 text-[13px] font-medium leading-tight text-muted">
+        <span className="min-w-0">{metric.label}</span>
+        {tip && <InfoTip text={tip} className="mt-0.5" />}
+      </div>
       <div className="mt-1 truncate text-[30px] font-extrabold leading-none tracking-tight text-ink">
         {metric.awaiting ? (
           <span className="text-[20px] text-muted">Awaiting data</span>
@@ -48,8 +44,8 @@ export function KpiCard({ metric }: { metric: MetricValue }) {
           </>
         )}
       </div>
-      {DEFINITION[metric.key] && (
-        <div className="mt-1.5 text-[10px] leading-tight text-muted/80">{DEFINITION[metric.key]}</div>
+      {def && (
+        <div className="mt-1.5 text-[10px] leading-tight text-muted/80">{def.equation}</div>
       )}
       <div className="mt-auto pt-3">
         {metric.awaiting ? (
