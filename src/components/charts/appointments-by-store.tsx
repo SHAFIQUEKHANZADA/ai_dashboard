@@ -21,18 +21,46 @@ export function AppointmentsByStore({ data }: { data: StoreBookings[] }) {
   const hasData = rows.some((r) => r.appointments_booked > 0);
   if (!rows.length || !hasData) return <EmptyState />;
 
+  // Horizontal bars: store names get a full, readable line on the left instead of
+  // colliding on a cramped x-axis. Height grows with the number of stores so the
+  // rows never squeeze together as the group adds dealerships.
+  const height = Math.max(200, rows.length * 46 + 20);
+
   return (
-    <div className="h-[220px] w-full">
+    <div style={{ height }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows} margin={{ top: 24, right: 8, left: -18, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--line)" />
-          <XAxis dataKey="short" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--muted)" }} interval={0} />
-          <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--muted)" }} allowDecimals={false} />
-          <Bar dataKey="appointments_booked" radius={[6, 6, 0, 0]} maxBarSize={70}>
+        <BarChart
+          layout="vertical"
+          data={rows}
+          margin={{ top: 4, right: 36, left: 8, bottom: 4 }}
+          barCategoryGap="30%"
+        >
+          <CartesianGrid horizontal={false} stroke="var(--line)" />
+          <XAxis
+            type="number"
+            tickLine={false}
+            axisLine={false}
+            tick={{ fontSize: 11, fill: "var(--muted)" }}
+            allowDecimals={false}
+          />
+          <YAxis
+            type="category"
+            dataKey="short"
+            width={132}
+            tickLine={false}
+            axisLine={false}
+            tick={{ fontSize: 12, fill: "var(--ink)" }}
+            interval={0}
+          />
+          <Bar dataKey="appointments_booked" radius={[0, 6, 6, 0]} maxBarSize={26}>
             {rows.map((_, i) => (
               <Cell key={i} fill={BARS[i % BARS.length]} />
             ))}
-            <LabelList dataKey="appointments_booked" position="top" style={{ fontSize: 13, fontWeight: 700, fill: "var(--ink)" }} />
+            <LabelList
+              dataKey="appointments_booked"
+              position="right"
+              style={{ fontSize: 13, fontWeight: 700, fill: "var(--ink)" }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
