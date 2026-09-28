@@ -20,6 +20,16 @@ export const METRIC_DEFS: Record<string, MetricDef> = {
     equation: "count of calls that booked an appointment",
     plain: "Each appointment booked counts once — a customer who books twice is two appointments.",
   },
+  booking_attempts: {
+    label: "Appt Intent",
+    equation: "count of calls that reached a booking decision",
+    plain: "Callers who were actually trying to book — booked, needed a callback, or dropped. Excludes pure info calls and calls with no transcript.",
+  },
+  questions_answered: {
+    label: "Questions Answered",
+    equation: "count of info-only calls Esther resolved",
+    plain: "Calls where the customer just needed information and Esther handled it end to end, no person required. Counts as a success in its own right.",
+  },
   conversion_overall: {
     label: "Conversion — Overall",
     equation: "appointments booked ÷ all calls",
@@ -90,7 +100,9 @@ export const METRIC_DEFS: Record<string, MetricDef> = {
 // The order metrics appear in the Glossary index.
 export const GLOSSARY_ORDER: string[] = [
   "total_calls",
+  "booking_attempts",
   "appointments_booked",
+  "questions_answered",
   "conversion_overall",
   "conversion_appointment",
   "containment_rate",

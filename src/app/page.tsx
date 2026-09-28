@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, PieChart, TrendingUp, Target, PhoneMissed, ArrowLeftRight, ArrowRight } from "lucide-react";
+import { CalendarDays, PieChart, TrendingUp, Target, PhoneMissed, ArrowLeftRight, ArrowRight, ListChecks } from "lucide-react";
 import { getDashboardData } from "@/lib/data";
 import { isDrillMetric } from "@/lib/pages";
 import { requireUser, getAccessibleStores } from "@/lib/auth";
@@ -15,6 +15,7 @@ import { RecoveredTable } from "@/components/tables/recovered-table";
 import { CallbacksTable } from "@/components/tables/callbacks-table";
 import { EquityFunnelPanel } from "@/components/tables/equity-funnel";
 import { NeedsAttentionSection } from "@/components/needs-attention";
+import { CallOutcomes } from "@/components/call-outcomes";
 import { Glossary } from "@/components/glossary";
 
 export const dynamic = "force-dynamic";
@@ -103,6 +104,19 @@ export default async function DashboardPage({
             <StatCard key={m.key} metric={m} />
           )
         )}
+      </div>
+
+      {/* "Where the calls went" — the same self-explanatory breakdown as the daily
+          report (Handled vs Needs follow-up), so the dashboard and the email agree
+          (Reid). Placed under the KPIs where the story reads top-to-bottom. */}
+      <div className="mt-4">
+        <Panel
+          title="Where the Calls Went"
+          subtitle={`Every call grouped by outcome · ${date}`}
+          icon={<ListChecks className="h-4 w-4" />}
+        >
+          <CallOutcomes data={data.outcomes} />
+        </Panel>
       </div>
 
       {/* Row 3 — charts */}

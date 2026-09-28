@@ -86,6 +86,23 @@ export interface StoreBookings {
   appointments_booked: number;
 }
 
+// "Where the N calls went" — every call in the day bucketed by outcome, the same
+// population and rules as the daily report's breakdown so the two always agree.
+// booked + questionsAnswered = HANDLED; dropped + callbacks + noSummary = NEEDS
+// FOLLOW-UP; the buckets sum to total. Transfers is an overlay tag (a call can be
+// both transferred and dropped), never a bucket, so it never subtracts from total.
+export interface CallOutcomes {
+  total: number;
+  booked: number;
+  questionsAnswered: number; // outcome = info_only
+  dropped: number;           // outcome = dropped
+  callbacks: number;         // outcome = callback_needed
+  noSummary: number;         // no outcome / no transcript (total - the rest)
+  apptIntent: number;        // booked + callbacks + dropped (reached a booking decision)
+  transfers: number;         // transferred to a person (service)
+  transfersVoicemail: number;// transferred AND dropped (reached voicemail / no pickup)
+}
+
 export interface CallbackRow {
   time: string;
   intent: string | null;

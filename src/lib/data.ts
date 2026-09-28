@@ -13,6 +13,7 @@ import type {
   EquityFunnel,
   NeedsAttention,
   AttentionItem,
+  CallOutcomes,
 } from "@/lib/types";
 
 // NOTE: reads use the service client for now so the dashboard renders during
@@ -36,6 +37,7 @@ const EST_COST_PER_CALL = 0.326;
 const SUM_KEYS = new Set([
   "total_calls", "appointments_booked", "eligible_calls", "transfers",
   "failed_transfers", "dropped_calls", "callbacks_needed", "recovered_count", "ai_spend",
+  "booking_attempts", // Appt Intent card — sums the per-store event count
 ]);
 
 // Seconds since midnight for a timestamp, in Chicago time.
@@ -113,6 +115,7 @@ export interface DashboardData {
   intentTotal: number;
   apptsByStore: StoreBookings[];
   showApptsByStore: boolean;
+  outcomes: CallOutcomes; // "Where the N calls went" breakdown
   trend: TrendPoint[];
   transfers: { successful: number; failed: number; total: number };
   callbacks: CallbackRow[];
@@ -275,6 +278,41 @@ export async function getCallInsights(scopeIds: string[], date: string): Promise
   };
 }
 
+// "Where the N calls went" — bucket every call in the day by outcome, using the
+// SAME population and rules as the daily report's _store_row breakdown so the
+// dashboard panel and the emailed report can never disagree. Counts calls (events),
+// matching how appointments_booked and booking_attempts are counted.
+export async function getCallOutcomes(scopeIds: string[], date: string): Promise<CallOutcomes> {
+  const sb = createServiceClient();
+  const { data } = await sb
+    .from("esther_calls")
+    .select("outcome,transferred,department")
+    .eq("local_date", date)
+    .in("store_id", scopeIds)
+    .not("tags", "cs", "{qa-line}"); // exclude QA/secret-shopper calls, like the rollup
+  const rows = (data ?? []) as { outcome: string | null; transferred: boolean | null; department: string | null }[];
+  const total = rows.length;
+  const count = (pred: (r: (typeof rows)[number]) => boolean) => rows.filter(pred).length;
+  const booked = count((r) => r.outcome === "booked");
+  const questionsAnswered = count((r) => r.outcome === "info_only");
+  const dropped = count((r) => r.outcome === "dropped");
+  const callbacks = count((r) => r.outcome === "callback_needed");
+  // Service transfers (exclude sales hand-offs), matching the rollup + report.
+  const transfers = count((r) => !!r.transferred && r.department !== "sales");
+  const transfersVoicemail = count((r) => !!r.transferred && r.department !== "sales" && r.outcome === "dropped");
+  return {
+    total,
+    booked,
+    questionsAnswered,
+    dropped,
+    callbacks,
+    noSummary: Math.max(0, total - (booked + questionsAnswered + dropped + callbacks)),
+    apptIntent: booked + callbacks + dropped,
+    transfers,
+    transfersVoicemail,
+  };
+}
+
 interface DM {
   store_id: string;
   local_date: string;
@@ -377,6 +415,7 @@ export async function getDashboardData(opts: {
   // Kick these off NOW so they run concurrently with the main batch instead of
   // as extra sequential round-trips afterwards (dashboard load speed — Reid).
   const insightsPromise = getCallInsights(scopeIds, date);
+  const outcomesPromise = getCallOutcomes(scopeIds, date);
   const needsAttentionPromise = getNeedsAttention(scopeIds, date, storeNames);
   const isToday = date === ctToday();
   const sameTimePromise = isToday
@@ -463,11 +502,19 @@ export async function getDashboardData(opts: {
     sold: appraisals.filter((a) => a.outcome === "sold").length,
   };
 
+  // Resolved before the cards are built so the "Questions Answered" card (info-only
+  // calls Esther fully handled) can read its value — it isn't a daily_metrics column.
+  const outcomes = await outcomesPromise;
+
   const buildMetric = (d: MetricDefinition): MetricValue => {
     const forced = AWAITING.has(d.key);
     let value = forced ? null : aggregate(cur, d.key);
     let previous = forced ? null : aggregate(prevRows, d.key);
     let estimated = false;
+
+    // Questions Answered = info-only calls Esther resolved without a person (Chris).
+    // Counted from esther_calls (same population as the report), not the rollup.
+    if (d.key === "questions_answered") value = outcomes.questionsAnswered;
 
     // Secret Shopper Score comes from the QA grader (esther_qa_scores), not the
     // daily rollup — average of the day's shop-call grades.
@@ -583,6 +630,7 @@ export async function getDashboardData(opts: {
     intentTotal,
     apptsByStore,
     showApptsByStore: !storeId && scopeIds.length > 1,
+    outcomes,
     trend,
     transfers,
     callbacks,
