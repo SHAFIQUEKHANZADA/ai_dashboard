@@ -21,44 +21,38 @@ export function AppointmentsByStore({ data }: { data: StoreBookings[] }) {
   const hasData = rows.some((r) => r.appointments_booked > 0);
   if (!rows.length || !hasData) return <EmptyState />;
 
-  // Horizontal bars: store names get a full, readable line on the left instead of
-  // colliding on a cramped x-axis. Height grows with the number of stores so the
-  // rows never squeeze together as the group adds dealerships.
-  const height = Math.max(200, rows.length * 46 + 20);
-
+  // Vertical columns (count on the Y axis), matching the other charts. Store names
+  // sit on the X axis, angled so they stay readable even with 5+ dealerships.
   return (
-    <div style={{ height }} className="w-full">
+    <div style={{ height: 300 }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          layout="vertical"
-          data={rows}
-          margin={{ top: 4, right: 36, left: 8, bottom: 4 }}
-          barCategoryGap="30%"
-        >
-          <CartesianGrid horizontal={false} stroke="var(--line)" />
+        <BarChart data={rows} margin={{ top: 18, right: 8, left: 0, bottom: 44 }} barCategoryGap="24%">
+          <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis
+            dataKey="short"
+            interval={0}
+            tickLine={false}
+            axisLine={false}
+            angle={-20}
+            textAnchor="end"
+            height={56}
+            tick={{ fontSize: 11, fill: "var(--muted)" }}
+          />
+          <YAxis
             type="number"
+            width={28}
             tickLine={false}
             axisLine={false}
             tick={{ fontSize: 11, fill: "var(--muted)" }}
             allowDecimals={false}
           />
-          <YAxis
-            type="category"
-            dataKey="short"
-            width={132}
-            tickLine={false}
-            axisLine={false}
-            tick={{ fontSize: 12, fill: "var(--ink)" }}
-            interval={0}
-          />
-          <Bar dataKey="appointments_booked" radius={[0, 6, 6, 0]} maxBarSize={26}>
+          <Bar dataKey="appointments_booked" radius={[6, 6, 0, 0]} maxBarSize={54}>
             {rows.map((_, i) => (
               <Cell key={i} fill={BARS[i % BARS.length]} />
             ))}
             <LabelList
               dataKey="appointments_booked"
-              position="right"
+              position="top"
               style={{ fontSize: 13, fontWeight: 700, fill: "var(--ink)" }}
             />
           </Bar>

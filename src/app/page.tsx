@@ -106,10 +106,23 @@ export default async function DashboardPage({
         )}
       </div>
 
-      {/* "Where the calls went" — the same self-explanatory breakdown as the daily
-          report (Handled vs Needs follow-up), so the dashboard and the email agree
-          (Reid). Placed under the KPIs where the story reads top-to-bottom. */}
-      <div className="mt-4">
+      {/* Charts line — Appointments by Store next to the 14-day trend, in one row
+          (Reid's layout). On a single-store view there's no by-store chart, so the
+          trend takes the full width. */}
+      <div className={`mt-4 grid grid-cols-1 gap-4 ${data.showApptsByStore ? "lg:grid-cols-2" : ""}`}>
+        {data.showApptsByStore && (
+          <Panel title="Appointments by Store" subtitle={`Total booked · ${date}`} icon={<CalendarDays className="h-4 w-4" />}>
+            <AppointmentsByStore data={data.apptsByStore} />
+          </Panel>
+        )}
+        <Panel title="Daily Calls & Bookings Trend" subtitle="Last 14 days" icon={<TrendingUp className="h-4 w-4" />}>
+          <CallsBookingsTrend data={data.trend} />
+        </Panel>
+      </div>
+
+      {/* Below the charts — where every call went (the report's breakdown) next to
+          the call-reason mix, side by side (Reid). */}
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel
           title="Where the Calls Went"
           subtitle={`Every call grouped by outcome · ${date}`}
@@ -117,20 +130,8 @@ export default async function DashboardPage({
         >
           <CallOutcomes data={data.outcomes} />
         </Panel>
-      </div>
-
-      {/* Row 3 — charts */}
-      <div className={`mt-4 grid grid-cols-1 gap-4 ${data.showApptsByStore ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
-        {data.showApptsByStore && (
-          <Panel title="Appointments by Store" subtitle={`Total booked · ${date}`} icon={<CalendarDays className="h-4 w-4" />}>
-            <AppointmentsByStore data={data.apptsByStore} />
-          </Panel>
-        )}
         <Panel title="Customer Intent" subtitle="Call reason — AI-classified from each call" icon={<PieChart className="h-4 w-4" />}>
           <CustomerIntent slices={data.insights.intentDetail} total={data.insights.callsConsidered || data.intentTotal} />
-        </Panel>
-        <Panel title="Daily Calls & Bookings Trend" subtitle="Last 14 days" icon={<TrendingUp className="h-4 w-4" />}>
-          <CallsBookingsTrend data={data.trend} />
         </Panel>
       </div>
 
