@@ -1,4 +1,4 @@
-import { Send, MessageSquare, ThumbsUp, Tag, Percent, ExternalLink } from "lucide-react";
+import { Send, MessageSquare, ThumbsUp, Percent, ExternalLink } from "lucide-react";
 import { requireTab } from "@/lib/auth";
 import { PageTop } from "@/components/page-top";
 import { StoreFilter } from "@/components/store-filter";
@@ -13,8 +13,13 @@ import { fmtDateTime, fmtTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
+// In the current flow the opener asks "have you been appraised lately?" — a
+// customer who says NO hasn't been, and THAT is the opportunity: the team is
+// alerted to walk over. So the win is the "no", not a "yes". ("yes"/"opportunity"
+// are the same event; "yes" is the legacy value still on older rows.)
 const OUTCOME: Record<string, { label: string; cls: string }> = {
-  yes: { label: "Said yes", cls: "bg-green/10 text-green" },
+  opportunity: { label: "Opportunity", cls: "bg-green/10 text-green" },
+  yes: { label: "Opportunity", cls: "bg-green/10 text-green" },
   value_only: { label: "Wants the number", cls: "bg-blue/10 text-blue" },
   engaged: { label: "Replied", cls: "bg-amber/15 text-amber" },
   declined: { label: "Not interested", cls: "bg-muted/15 text-muted" },
@@ -115,7 +120,10 @@ export default async function AppraisalsPage({
 
   let list = d.rows;
   if (view === "replied") list = list.filter((r) => r.replied_at);
-  else if (view === "yes") list = list.filter((r) => r.outcome === "yes" || r.outcome === "value_only");
+  else if (view === "yes")
+    list = list.filter(
+      (r) => r.outcome === "opportunity" || r.outcome === "yes" || r.outcome === "value_only",
+    );
   else if (view === "silent") list = list.filter((r) => !r.replied_at);
   if (q) list = list.filter((r) => (r.customer_name ?? "").toLowerCase().includes(q));
 
@@ -143,13 +151,14 @@ export default async function AppraisalsPage({
           <>
             <strong className="text-ink">{d.sent} customers</strong> were texted over the last 14
             days. <strong className="text-ink">{d.replied}</strong> replied and{" "}
-            <strong className="text-ink">{d.yes}</strong> said yes.
+            <strong className="text-ink">{d.yes}</strong>{" "}
+            {d.yes === 1 ? "was an opportunity" : "were opportunities"} (hadn&rsquo;t been appraised).
             {today && ` Most recently on ${today.date}: ${today.sent} texted, ${today.replied} replied.`}
           </>
         )}
       </p>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <MetricTile icon={Send} tone="blue" label="Texts sent" value={d.sent} />
         <MetricTile
           icon={MessageSquare}
@@ -160,11 +169,10 @@ export default async function AppraisalsPage({
         <MetricTile
           icon={ThumbsUp}
           tone={d.yes > 0 ? "green" : "ink"}
-          label="Said yes"
+          label="Opportunities"
           value={d.yes}
-          caption="Agreed to an appraisal"
+          caption="Hadn't been appraised — team alerted"
         />
-        <MetricTile icon={Tag} tone="purple" label="Wants the number" value={d.valueOnly} />
         <MetricTile
           icon={Percent}
           tone={d.replyRate != null && d.replyRate >= 20 ? "green" : "red"}
@@ -186,7 +194,7 @@ export default async function AppraisalsPage({
             stages={[
               { label: "Texted", value: d.sent, tone: "blue" },
               { label: "Replied", value: d.replied, tone: "amber" },
-              { label: "Said yes", value: d.yes, tone: "green" },
+              { label: "Opportunities", value: d.yes, tone: "green" },
             ]}
           />
           {d.byStore.length > 0 && (
@@ -209,7 +217,7 @@ export default async function AppraisalsPage({
           )}
         </Panel>
 
-        <Panel title="Day by day" subtitle="Sent, replied, and who said yes" className="lg:col-span-2">
+        <Panel title="Day by day" subtitle="Sent, replied, and opportunities" className="lg:col-span-2">
           {d.daily.length === 0 ? (
             <EmptyState label="No days in range" />
           ) : (
@@ -220,7 +228,7 @@ export default async function AppraisalsPage({
                     <th className="pb-2 font-semibold">Day</th>
                     <th className="pb-2 font-semibold">Sent</th>
                     <th className="pb-2 font-semibold">Replied</th>
-                    <th className="pb-2 font-semibold">Said yes</th>
+                    <th className="pb-2 font-semibold">Opportunities</th>
                     <th className="pb-2 font-semibold">Reply rate</th>
                   </tr>
                 </thead>
@@ -263,7 +271,7 @@ export default async function AppraisalsPage({
             tabs={[
               { key: "all", label: "Everyone", count: d.rows.length },
               { key: "replied", label: "Replied", count: d.replied, tone: "amber" },
-              { key: "yes", label: "Said yes", count: d.yes + d.valueOnly, tone: "green" },
+              { key: "yes", label: "Opportunities", count: d.yes + d.valueOnly, tone: "green" },
               { key: "silent", label: "No reply", count: d.noReply },
             ]}
           />

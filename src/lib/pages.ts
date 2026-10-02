@@ -507,11 +507,11 @@ export async function getAppraisals(
 
   const count = (o: string) => rows.filter((r) => r.outcome === o).length;
   const replied = rows.filter((r) => r.replied_at).length;
-  // "Yes" is the one that puts a salesperson in front of a customer. value_only
-  // is a softer yes (wants the number, not the conversation) and is kept
-  // separate rather than folded in — merging them would overstate the result
-  // Reid is actually measuring.
-  const yes = count("yes");
+  // The opportunity is the customer who hadn't been appraised — the team is
+  // alerted to walk over. The classifier records that as "opportunity" (and, on
+  // older rows, "yes"); both count the same event. value_only is a softer, legacy
+  // outcome (wants the number, not the conversation) kept separate.
+  const yes = count("opportunity") + count("yes");
 
   // Sent vs replied per day, so the trend is visible and not just today.
   const dayMap = new Map<string, { date: string; sent: number; replied: number; yes: number }>();
@@ -519,7 +519,7 @@ export async function getAppraisals(
     const e = dayMap.get(r.local_date) ?? { date: r.local_date, sent: 0, replied: 0, yes: 0 };
     e.sent += 1;
     if (r.replied_at) e.replied += 1;
-    if (r.outcome === "yes") e.yes += 1;
+    if (r.outcome === "opportunity" || r.outcome === "yes") e.yes += 1;
     dayMap.set(r.local_date, e);
   }
   const daily = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
