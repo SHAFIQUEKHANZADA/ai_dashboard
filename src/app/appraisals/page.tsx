@@ -20,6 +20,7 @@ export const dynamic = "force-dynamic";
 const OUTCOME: Record<string, { label: string; cls: string }> = {
   opportunity: { label: "Opportunity", cls: "bg-green/10 text-green" },
   yes: { label: "Opportunity", cls: "bg-green/10 text-green" },
+  already_appraised: { label: "Already appraised", cls: "bg-muted/15 text-muted" },
   value_only: { label: "Wants the number", cls: "bg-blue/10 text-blue" },
   engaged: { label: "Replied", cls: "bg-amber/15 text-amber" },
   declined: { label: "Not interested", cls: "bg-muted/15 text-muted" },
