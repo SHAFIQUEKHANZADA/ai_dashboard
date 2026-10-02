@@ -1,4 +1,4 @@
-import { ShieldCheck, AlertTriangle, TriangleAlert, PhoneCall, Quote } from "lucide-react";
+import { ShieldCheck, AlertTriangle, TriangleAlert, PhoneCall, Quote, ExternalLink } from "lucide-react";
 import { requireTab } from "@/lib/auth";
 import { PageTop } from "@/components/page-top";
 import { StoreFilter } from "@/components/store-filter";
@@ -92,11 +92,19 @@ function Finding({ r }: { r: AuditRow }) {
         )}
       </div>
 
-      {r.confidence != null && (
-        <footer className="mt-2 text-[11px] text-muted">
-          {Math.round(r.confidence * 100)}% confident
-        </footer>
-      )}
+      <footer className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted">
+        <span>{r.confidence != null ? `${Math.round(r.confidence * 100)}% confident` : ""}</span>
+        {r.ghl_url && (
+          <a
+            href={r.ghl_url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 font-semibold text-brand hover:underline"
+          >
+            Open in GoHighLevel <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </footer>
     </article>
   );
 }

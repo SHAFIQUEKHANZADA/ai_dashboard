@@ -402,6 +402,22 @@ export async function getCallQuality(
     .limit(500);
 
   const all = data ?? [];
+
+  // The audit is keyed by message id; GHL links by contact. esther_calls carries
+  // both, so look up the contact for each flagged call and build a real link
+  // Reid can click straight through to the conversation.
+  const msgIds = all.map((r) => r.ghl_message_id).filter(Boolean);
+  const contactByMsg = new Map<string, string>();
+  if (msgIds.length) {
+    const { data: callRows } = await sb
+      .from("esther_calls")
+      .select("ghl_message_id,ghl_contact_id")
+      .in("ghl_message_id", msgIds);
+    for (const c of callRows ?? []) {
+      if (c.ghl_contact_id) contactByMsg.set(c.ghl_message_id, c.ghl_contact_id);
+    }
+  }
+
   const rows: AuditRow[] = all.map((r) => ({
     ghl_message_id: r.ghl_message_id,
     store: names.get(r.store_id) ?? "—",
@@ -411,9 +427,10 @@ export async function getCallQuality(
     headline: r.headline,
     confidence: r.confidence,
     detail: Array.isArray(r.detail) ? r.detail : [],
-    // The audit is keyed by message id, but GHL links by contact; the call list
-    // already carries that, so leave this null rather than inventing a URL.
-    ghl_url: ghlContactUrl(locs.get(r.store_id) ?? null, null),
+    ghl_url: ghlContactUrl(
+      locs.get(r.store_id) ?? null,
+      contactByMsg.get(r.ghl_message_id) ?? null,
+    ),
   }));
 
   const judged = rows.filter((r) => !NOT_AUDITED.includes(r.severity));
