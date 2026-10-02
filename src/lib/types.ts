@@ -117,8 +117,8 @@ export interface RecoveredRow {
 }
 
 // Reid's trade-equity accountability funnel. One row per service customer who
-// said yes to a trade value; the later fields fill in as the salesperson works
-// the lead from the claim screen.
+// hadn't been appraised (the opportunity); the later fields fill in as the
+// salesperson works the lead from the claim screen.
 export interface EquityRow {
   id: number;
   customer_name: string | null;

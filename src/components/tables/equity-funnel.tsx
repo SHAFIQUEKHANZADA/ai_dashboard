@@ -3,9 +3,10 @@ import type { EquityFunnel, EquityRow } from "@/lib/types";
 // Reid's accountability report. The question it answers is not "how many
 // appraisals" -- that is the card at the top -- but "where did they go".
 //
-// Every dealership has the same leak: a customer says yes, an alert fires, and
-// nobody walks over. Until this existed nobody could prove it either way, so
-// the stage that matters most is the drop between Wants options and Claimed.
+// The opportunity is the customer who says they HAVEN'T been appraised while in
+// for service. Every dealership has the same leak: that opportunity fires an
+// alert and nobody walks over. Until this existed nobody could prove it either
+// way, so the stage that matters most is the drop between Opportunity and Claimed.
 
 function pct(n: number, of: number): string {
   if (!of) return "--";
@@ -43,24 +44,23 @@ export function EquityFunnelPanel({
 }: { funnel: EquityFunnel; rows: EquityRow[] }) {
   const top = funnel.scheduled;
 
-  // The one number worth putting in words. A customer who agreed to be
-  // approached and was never approached is the most expensive thing on this
-  // page -- they asked, in the building, and nobody came.
-  const missed = Math.max(0, funnel.wantsOptions - funnel.claimed);
+  // The one number worth putting in words. A customer who hadn't been appraised
+  // -- an opportunity, in the building -- and was never walked over to is the
+  // most expensive thing on this page.
+  const missed = Math.max(0, funnel.scheduled - funnel.claimed);
 
   if (!top) {
     return (
       <p className="py-8 text-center text-sm text-neutral-500">
-        No appraisals yet today. Customers who say yes to a trade value while
-        they&rsquo;re in for service show up here.
+        No opportunities yet today. Customers who hadn&rsquo;t been appraised
+        while they&rsquo;re in for service show up here.
       </p>
     );
   }
 
   return (
     <div>
-      <Stage label="Said yes to a value" value={funnel.scheduled} of={top} />
-      <Stage label="Wanted to see options" value={funnel.wantsOptions} of={top} />
+      <Stage label="Opportunities" value={funnel.scheduled} of={top} />
       <Stage
         label="Claimed by a salesperson"
         value={funnel.claimed}

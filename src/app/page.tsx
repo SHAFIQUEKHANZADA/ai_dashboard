@@ -141,12 +141,12 @@ export default async function DashboardPage({
       <div className="mt-4">
         <Panel
           title="Trade Equity — Service Drive"
-          subtitle="Customers who said yes to a trade value while in for service"
+          subtitle="Customers who hadn't been appraised while in for service — team alerted to walk over"
           icon={<Target className="h-4 w-4" />}
           headerRight={
             data.appraisalsScheduled ? (
               <span className="whitespace-nowrap rounded-full bg-green/10 px-2.5 py-1 text-[11px] font-semibold text-green">
-                {data.appraisalsScheduled} appraisal{data.appraisalsScheduled === 1 ? "" : "s"}
+                {data.appraisalsScheduled} opportunit{data.appraisalsScheduled === 1 ? "y" : "ies"}
               </span>
             ) : undefined
           }

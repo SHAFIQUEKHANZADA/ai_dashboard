@@ -125,8 +125,8 @@ export interface DashboardData {
   recoveredValueEst: number; // rough estimated $ recovered (recoveredTotal × per-RO estimate)
   insights: CallInsights;
   needsAttention: NeedsAttention;
-  appraisalsScheduled: number;   // said yes to a trade value today
-  appraisalsWantOptions: number; // of those, how many agreed to be approached
+  appraisalsScheduled: number;   // opportunities today (hadn't been appraised)
+  appraisalsWantOptions: number; // of those, how many the team was alerted on
   equityFunnel: EquityFunnel;
   equityRows: EquityRow[];
   lastUpdated: string | null;
@@ -484,7 +484,7 @@ export async function getDashboardData(opts: {
     ? Math.round(qaScores.reduce((a, b) => a + b, 0) / qaScores.length)
     : null;
 
-  // Appraisals Scheduled — how many service customers said yes to a trade value.
+  // Opportunities — service customers who hadn't been appraised (the "no").
   const appraisals = (apprRes.data ?? []) as unknown as EquityRow[];
   const appraisalsScheduled = appraisals.length;
   const appraisalsWantOptions = appraisals.filter((a) => a.wants_options).length;
